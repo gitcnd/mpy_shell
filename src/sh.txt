@@ -1,0 +1,133 @@
+version	1.0.20240626
+0	{} command not found
+1	No manual entry for {}
+2	Usage: man [keyword]
+3	File write exception: {}
+4	Socket send exception: {}
+5	Output file setup failed: {}
+6	Input file setup failed: {}
+7	Socket setup failed: {}
+8	Failed to get NTP time: {}
+9	{}: missing operand(s)
+10	{}: {}
+11	{}: target '{}' is not a directory
+12	{}: cannot access '{}': No such file or directory
+13	sh: !{}: event not found
+14	usage: ping <address>
+15	Error getting IP address: {}
+16	PING {} ({}) 56(84) bytes of data.
+17	Request timeout for icmp_seq {}
+18	--- {} ping statistics ---\n{} packets transmitted, {} received, {:.0f}% packet loss, time {:.0f}ms
+19	rtt min/avg/max/mdev = {:.3f}/{:.3f}/{:.3f}/{:.3f} ms
+dir	List directory contents (alias for ls -Flatr)
+ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
+cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
+mv	Move or rename files or directories\n$GRN mv <source> <destination> $NORM Move source to destination\n$GRN -i $NORM Prompt before overwrite\n$GRN -f $NORM Force move by overwriting destination files
+rm	Remove files or directories\n$GRN -r $NORM Remove directories and their contents recursively\n$GRN -f $NORM Ignore nonexistent files, never prompt
+cp	Copy files or directories\n$GRN -r $NORM Copy directories recursively\n$GRN -i $NORM Prompt before overwrite\n$GRN -f $NORM Force copy by overwriting destination files
+pwd	Print working directory
+find	Search for files in a directory hierarchy\n$GRN find <path> $NORM Start search from the specified path\n$GRN -name $NORM Search for files by name\n$GRN -type $NORM Search for files by type (e.g., f for files, d for directories)
+sort	Sort lines of text files\n$GRN -r $NORM Reverse the result of comparisons\n$GRN -n $NORM Compare according to string numerical value
+mkdir	Make directories\n$GRN -p $NORM Create parent directories as needed
+df	Report file system disk space usage\n$GRN -h $NORM Human-readable sizes\n$GRN -i $NORM Display inode information
+free	show circuitpython memory usage
+du	Estimate file space usage\n$GRN -h $NORM Human-readable sizes\n$GRN -s $NORM Display only a total for each argument
+rmdir	Remove empty directories\n$GRN --ignore-fail-on-non-empty $NORM Ignore each failure to remove a directory that is not empty
+touch	Change file timestamps or create an empty file
+XXtouch	Change file timestamps or create an empty file\n$GRN -c $NORM Do not create any files\n$GRN -d $NORM Use the specified time instead of the current time
+vi	vim-like Text editor
+man	Display manual pages for commands\n$GRN man <command> $NORM Show the manual page for the specified command
+nano	Text editor
+edit	Text editor
+grep	Search text using patterns\n$GRN -i $NORM Ignore case distinctions\n$GRN -r $NORM Read all files under each directory recursively\n$GRN -v $NORM Select non-matching lines
+cat	Concatenate and display files
+tail	Output the last part of files\n$GRN -n $NORM Output the last N lines\n$GRN -f $NORM Output appended data as the file grows
+head	Output the first part of files\n$GRN -n $NORM Output the first N lines
+echo	Display a line of text
+more	View file contents page-by-page
+wc	Word, line, character, and byte count\n$GRN -c $NORM Print the byte counts\n$GRN -w $NORM Print the word counts\n$GRN -l $NORM Print the newline counts
+zcat	Concatenate compressed files and output
+less	View file contents page-by-page with backward movement
+hexedit	View and edit files in hexadecimal format
+history	Command history
+uname	Print system information\n$GRN -a $NORM Print all information
+uptime	Tell how long the system has been running
+hostname	Show or set the system's hostname
+date	Display or set the system date and time
+whois	Query domain name information
+env	Display or set environment variables
+setenv	Set environment variables
+export	Set environment variables
+printenv	Print all or part of the environment
+diff	Compare files line by line\n$GRN -u $NORM Output in unified format\n$GRN -q $NORM Report only when files differ
+curl	Transfer data from or to a server\n$GRN -i $NORM show headers\n$GRN -I $NORM do a HEAD request\n$GRN --data=myvar=value $NORM send POST data\n$GRN -O $NORM Write output to a file named as the remote file\n$GRN --output=file $NORM Write output to a specified file
+wget	Non-interactive network downloader - see$YEL curl$NORM command
+ping	Send ICMP ECHO_REQUEST to network hosts\n$GRN -c $NORM Stop after sending count ECHO_REQUEST packets
+ifconfig	Print networking information (IP address, Gateway, BSSID, Signal Strength, TX Power, etc)
+dig	DNS lookup
+ssh	OpenSSH remote login client
+scp	Secure copy (remote file copy program)
+telnet	User interface to the TELNET protocol
+nc	netcat arbitrary TCP and UDP connections and listens
+ifconfig	Configure network interfaces
+ftp	File Transfer Protocol client
+pip	Package manager
+yum	Package manager
+apt	Advanced Package Tool
+tar	Archive files\n$GRN -c $NORM Create a new archive\n$GRN -x $NORM Extract files from an archive\n$GRN -f $NORM Use archive file
+gzip	Compress files
+gunzip	Decompress files
+bzip2	Compress files
+bunzip2	Decompress files
+python	Python interpreter
+sh	Shell
+git	Distributed version control system
+locate	Find files by name
+sz	Send files (ZModem)
+rz	Receive files (ZModem)
+now	Display the current date and time
+who	Show who is logged on
+which	Locate a command
+clear	Clear the terminal screen
+cls	Clear the terminal screen
+reboot	Reboot the system
+poweroff	Halt, power-off, or reboot the machine
+passwd	Change user password
+sleep	Delay for a specified amount of time
+unalias	Remove alias definitions
+alias	Create an alias for a command
+exit	Exit the shell
+help	Display help information about built-in commands. use$GRN help all$NORM to see detailed information. see also:$YEL man$NORM
+md5sum	Calculate MD5 checksums
+sha1sum	Calculate SHA-1 checksums
+sha256sum	Calculate SHA-256 checksums
+hexedit	View and edit files in hexadecimal format
+blink	Flash the device LED
+set	Set the state of a GPIO pin\n$GRN set <pin> <state> $NORM Set specified pin to high or low state
+pins	Display the input coming in to a GPIO pin\n$GRN pins <pin> $NORM Display input for the specified pin
+adc	Display the analogue input from a GPIO\n$GRN adc <pin> $NORM Display analogue input for the specified pin
+button	Display the state of the default button
+photo	Take a photo from the device camera\n$GRN -o $NORM Specify output file
+neo_blink	Set one or more NeoPixel LED colours\n$GRN neo_blink <pin> <color> $NORM Set the specified pin to the specified color
+blink_all_pins	Output pin numbers using TTL 1's and 0's to identify pins
+beep	Send an analogue tone to the default speaker\n$GRN beep <frequency> $NORM Set frequency of the tone\n$GRN <duration> $NORM Set duration of the tone
+freq	Set a specific analogue output to a GPIO pin\n$GRN freq <pin> <frequency> $NORM Set the specified pin to the specified frequency
+display	Control the screen
+print	Write some text onto the screen\n$GRN print <text> $NORM Display the specified text
+showbmp	Put a graphic onto the screen\n$GRN showbmp <file> $NORM Display the specified BMP file
+clearlcd	Erase the LCD screen
+mountsd	Attach an SD card
+umount	Un-attach the SD card
+run	Execute a Python program from the shell\n$GRN run <file> $NORM Run the specified Python file
+espnowreceiver	Show incoming espnow messages
+espnowsender	Send espnow messages\n$GRN espnowsender <message> $NORM Send the specified message
+hardreset	Reboot the chip
+memtest	Test memory
+bluescan	Show visible Bluetooth devices and data
+scani2c	Show attached I2C devices found
+temperature	Print current temperature
+mag	Show the X, Y, and Z field strength from a magnetometer
+gps	Display your latitude and longitude
+radar	Output data from your attached radar device
+telnetd	Listen for terminal input over TCP/IP
+wifi	Control your Wi-Fi settings\n$GRN -c $NORM Connect to a network\n$GRN -d $NORM Disconnect from a network
