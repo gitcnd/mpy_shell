@@ -10,9 +10,9 @@ __version__ = '1.0.20240626'  # Major.Minor.Patch
 
 import gc
 import time
-import wifi
+#import wifi
 #import ipaddress
-import socketpool
+#import socketpool
 
 
 def free(shell, cmdenv):
@@ -191,6 +191,7 @@ def _parse_url(url):
 
 
 def curl(shell, cmdenv):
+    import socketpool
     if len(cmdenv['args']) < 2:
         print("usage: curl [-I] [-i] [--data=data] <url>")
         return
@@ -309,4 +310,8 @@ def curl(shell, cmdenv):
 
 def wget(shell, cmdenv):
     return curl(shell, cmdenv)
+
+
+def now(shell, cmdenv):
+    print("{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
 

@@ -190,6 +190,7 @@ Supports settings.toml for configuration and environment where users can customi
 ## Notes
 
 * ENVironment variables come from, and write into, `settings.toml`
+* /.history.txt accumulates your command history (for up/down arrows and ! etc)
 * use ^C to exit back to the python repl \>>>
 
 ## Example

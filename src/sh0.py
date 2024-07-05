@@ -22,10 +22,14 @@ def sort(shell,cmdenv):  # 53 bytes
     return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
 
 def reboot(shell, cmdenv): # 85 bytes
-    import microcontroller
+    import machine
     print("Rebooting...")
-    microcontroller.reset()
+    machine.reset()
 
+# f="/.history.txt"
+# import os
+# s=os.stat(f)
+# s
 def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
     args=cmdenv['args']
     tsort=[]
@@ -40,7 +44,9 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
             pt = os.stat(f)
             fsize = shell.human_size(pt[6]) if cmdenv['sw'].get('h') else pt[6]
             mtime = time.localtime(pt[7])
-            mtime_str = f"{mtime.tm_year}-{mtime.tm_mon:02}-{mtime.tm_mday:02} {mtime.tm_hour:02}:{mtime.tm_min:02}.{mtime.tm_sec:02}"
+            #mtime_str = f"{mtime.tm_year}-{mtime.tm_mon:02}-{mtime.tm_mday:02} {mtime.tm_hour:02}:{mtime.tm_min:02}.{mtime.tm_sec:02}"
+            #mtime[0]-=30
+            mtime_str = f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02} {mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}"
             tag = "/" if cmdenv['sw'].get('F') and pt[0] & 0x4000 else ""
             ret=f"{fsize:,}\t{mtime_str}\t{f}{tag}" if cmdenv['sw'].get('l') else f"{f}{tag}"
             if cmdenv['sw'].get('t'):

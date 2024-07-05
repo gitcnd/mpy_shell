@@ -485,22 +485,22 @@ class CustomIO:
 
     def set_time(self):
         import struct
-        buf = bytearray(48)
-        buf[0] = 0b00100011
+        buf=b'\x1b' + 47 * b'\0'
 
-        try:
-            # Create socket
+        if 1: # try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(1)
             # Send NTP request
-            sock.sendto(buf, ("pool.ntp.org", 123))
-            # Receive NTP response
-            sock.recv_into(buf)
-            machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
-        except Exception as e:
-            print(self.get_desc('8').format(e))  # Failed to get NTP time: {}
-        finally:
+            sock.sendto(buf, (socket.getaddrinfo("pool.ntp.org", 123)[0][-1]))
+            buf, _ = sock.recvfrom(48)
+            rtc = machine.RTC()
+            rtc.datetime( time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800 - 946728000) ) # NTP timestamp starts from 1900, Unix from 1970
+            #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
+        #except Exception as e:
+        #    print(self.get_desc('8').format(e))  # Failed to get NTP time: {}
+        #finally:
             sock.close()
+        print("Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
         self.add_hist("#boot")
 
 class IORedirector:

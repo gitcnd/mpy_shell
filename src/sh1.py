@@ -288,7 +288,6 @@ def run2(shell, cmdenv):
             #    break
 
 
-
 def cat(shell, cmdenv):
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv)  # print("cat: missing file operand")
