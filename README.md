@@ -189,8 +189,6 @@ Supports settings.toml for configuration and environment where users can customi
 
 ## Notes
 
-* Micropython is only a single thread, so you can't background `&` things.
-* pipes are "faked" by sending output to temp files and running commands with redirection.
 * ENVironment variables come from, and write into, `settings.toml`
 * use ^C to exit back to the python repl \>>>
 
