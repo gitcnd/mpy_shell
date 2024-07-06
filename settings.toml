@@ -1,0 +1,20 @@
+# Use ^s (ctrl-S) <enter> then ^q (ctrl-Q) <ender> to save then quit the micropython editor
+
+HOSTNAME = "Device-Hostname" #  Must be a short mDNS-compatible name (no underscores, no dots, no special other than hyphen, must start+end with alphanumeric)
+
+CIRCUITPY_WIFI_SSID = "Your WIFI SSID Here"   # this MicroPython settings.toml file is compatible with CircuitPython too 
+CIRCUITPY_WIFI_PASSWORD = "Your_password_here"
+
+NORM = "\u001b[0m"       # Reset all attributes
+CLR  = "\u001b[K"        # Clear to the end of the line
+WHT  = "\u001b[1m"       # Bold/bright white
+RED  = "\u001b[31;1m"    # Bright red
+GRN  = "\u001b[32;1m"    # Bright green
+YEL  = "\u001b[33;1m"    # Bright yellow
+NAV  = "\u001b[34;1m"    # Bright blue
+BLU  = "\u001b[36;1m"    # Bright cyan
+SAVE = "\u001b7\u001b[s" # Save cursor position
+REST = "\u001b[u\u001b8" # Restore cursor position
+
+# Define any other alises or environemnt varialbes you want here
+dir = "ls -Flatr"
