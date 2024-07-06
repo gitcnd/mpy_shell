@@ -67,6 +67,8 @@ def history(shell, cmdenv):
         print(f"Error reading history: {e}")
 
 
+"""
+
 def _show_mdns():
     import wifi
     import mdns
@@ -100,41 +102,40 @@ def _show_mdns():
     else:
         print("No mDNS services found")
 
+"""
 
 def ifconfig(shell, cmdenv):
-    import wifi
-    import mdns
+    import network
+    import binascii
+
+    # Initialize network interface
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
 
     # Get network interface details
-    ip4_address = wifi.radio.ipv4_address
-    netmask = wifi.radio.ipv4_subnet
-    gateway = wifi.radio.ipv4_gateway
-    mac_address = wifi.radio.mac_address
-    hostname = wifi.radio.hostname
-    dns = wifi.radio.ipv4_dns
-    tx_power = wifi.radio.tx_power
-    mdns_server = mdns.Server(wifi.radio)
-    mdnshostname=mdns_server.hostname
-
-    # Format MAC address
-    mac_address_str = ':'.join(['{:02x}'.format(b) for b in mac_address])
+    ip4_address, netmask, gateway, dns = wlan.ifconfig()
+    mac_address = binascii.hexlify(wlan.config('mac'), ':').decode()
+    hostname = wlan.config('hostname')
+    tx_power = wlan.config('txpower')
 
     # Print network interface details
     print(f"wifi0: inet {ip4_address}  netmask {netmask}  gateway {gateway}")
-    print(f"\tether {mac_address_str}  (Ethernet)")
-    print(f"\tHostname: radio:{hostname} mDNS:{mdnshostname}")
-    #if dns:
+    print(f"\tether {mac_address}  (Ethernet)")
+    print(f"\tHostname: {hostname}")
     print(f"\tDNS: {dns}")
     print(f"\tTX power: {tx_power} dBm")
-    print(f"\tSSID: {wifi.radio.ap_info.ssid}")
-    print("\tBSSID: {}".format(':'.join([f'{b:02x}' for b in wifi.radio.ap_info.bssid])))
-    #print(':'.join([f'{b:02x}' for b in wifi.radio.ap_info.bssid]))
-    print(f"\tChannel: {wifi.radio.ap_info.channel}")
-    print(f"\tCountry: {wifi.radio.ap_info.country}")
-    print(f"\tRSSI: {wifi.radio.ap_info.rssi}")
-    _show_mdns()
-    #del sys.modules["mdns"] # done. save space now.
 
+    ap_info = wlan.status('rssi')
+    if ap_info:
+        print(f"\tSSID: {wlan.config('essid')}")
+        print("\tBSSID: {}".format(mac_address))  # placeholder, needs actual BSSID
+        print(f"\tChannel: {wlan.config('channel')}")
+        #print(f"\tCountry: {wlan.config('country')}")
+        print(f"\tRSSI: {ap_info}")
+        #print(dir(wlan)) # mpy=['__class__', 'IF_AP', 'IF_STA', 'PM_NONE', 'PM_PERFORMANCE', 'PM_POWERSAVE', 'SEC_OPEN', 'SEC_OWE', 'SEC_WAPI', 'SEC_WEP', 'SEC_WPA', 'SEC_WPA2', 'SEC_WPA2_ENT', 'SEC_WPA2_WPA3', 'SEC_WPA3', 'SEC_WPA_WPA2', 'active', 'config', 'connect', 'disconnect', 'ifconfig', 'ipconfig', 'isconnected', 'scan', 'status']
+
+    #_show_mdns()
+    #del sys.modules["mdns"] # done. save space now.
 
 
 def date(shell, cmdenv):
@@ -193,7 +194,8 @@ def _parse_url(url):
 
 
 def curl(shell, cmdenv):
-    import socketpool
+    import ssl
+    import socket
     if len(cmdenv['args']) < 2:
         print("usage: curl [-I] [-i] [--data=data] <url>")
         return
@@ -220,7 +222,17 @@ def curl(shell, cmdenv):
     headers["Host"] = host
 
     try:
-        # Create a socket pool
+        # Create a socket and connect
+        addr_info = socket.getaddrinfo(host, port)[0]
+        addr = addr_info[4]
+        sock = socket.socket(addr_info[0], addr_info[1], addr_info[2])
+        sock.connect(addr)
+
+        # Wrap socket with SSL if using HTTPS
+        if protocol == 'https':
+            sock = ssl.wrap_socket(sock, server_hostname=host)
+
+        """ # Create a socket pool
         pool = socketpool.SocketPool(wifi.radio)
 
         # Create a socket and connect
@@ -233,6 +245,7 @@ def curl(shell, cmdenv):
         if protocol == 'https':
             context = ssl.create_default_context()
             sock = context.wrap_socket(sock, server_hostname=host)
+        """
 
         # Construct the HTTP request
         request_lines = [f"{method} {path} HTTP/1.1"]
@@ -242,21 +255,21 @@ def curl(shell, cmdenv):
         request = "\r\n".join(request_lines) + "\r\n"
 
         # Send HTTP request
-        sock.send(request.encode('utf-8'))
+        sock.write(request.encode('utf-8'))
 
         # Receive and print response headers
         response = b""
-        buffer = bytearray(1024)
+
         while True:
-            nbytes = sock.recv_into(buffer)
-            if nbytes == 0:
+            chunk = sock.read(1024)
+            if not chunk:
                 break
-            response += buffer[:nbytes]
+            response += chunk
             if b'\r\n\r\n' in response:
                 break
 
-        response_str = response.decode('utf-8')
-        headers, body= response_str.split('\r\n\r\n', 1)
+        headers, body= response.split(b'\r\n\r\n', 1)
+        headers = headers.decode('utf-8')
         if include_headers:
             print(headers)
             print()
@@ -266,20 +279,21 @@ def curl(shell, cmdenv):
         if "Transfer-Encoding: chunked" in headers:
             # Process the initial part of the body
             while body:
-                length_str, body = body.split('\r\n', 1)
-                chunk_length = int(length_str, 16)
+                length_str, body = body.split(b'\r\n', 1)
+                chunk_length = int(length_str.decode('utf-8'), 16)
                 if chunk_length == 0:
                     break
 
                 # Ensure we have enough data to read the entire chunk
                 while len(body) < chunk_length:
-                    nbytes = sock.recv_into(buffer)
-                    if nbytes == 0:
+
+                    chunk = sock.read(1024)
+                    if not chunk:
                         break
-                    body += buffer[:nbytes].decode('utf-8')
+                    body += chunk
 
                 # Print the chunk data
-                chunk_data = body[:chunk_length]
+                chunk_data = body[:chunk_length].decode('utf-8')
                 print(chunk_data, end='')
 
                 # Move to the next chunk, skipping the trailing \r\n
@@ -287,21 +301,22 @@ def curl(shell, cmdenv):
 
                 # If body is empty, read more data
                 if not body:
-                    nbytes = sock.recv_into(buffer)
-                    if nbytes == 0:
+                    chunk = sock.read(1024)
+                    if not chunk:
                         break
-                    body += buffer[:nbytes].decode('utf-8')
+                    body += chunk
 
         else:
             # Print the initial part of the body
-            print(body, end='')
+            print(body.decode('utf-8'), end='')
 
             # Read and print the remaining non-chunked data
             while True:
-                nbytes = sock.recv_into(buffer)
-                if nbytes == 0:
+                chunk = sock.read(1024)
+                if not chunk:
                     break
-                print(buffer[:nbytes].decode('utf-8'), end='')
+                print(chunk.decode('utf-8'), end='')
+
 
         # Close the socket
         sock.close()
@@ -315,5 +330,9 @@ def wget(shell, cmdenv):
 
 
 def now(shell, cmdenv):
+    if time.localtime()[0]<2024:
+        #cio=shell.cio
+        #cio.set_time()  # set the time if possible and not already set
+        shell.cio.set_time()  # set the time if possible and not already set
     print("{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
 
