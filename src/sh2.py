@@ -58,8 +58,10 @@ def history(shell, cmdenv):
                 parts = line.strip().split("\t")
                 if len(parts) < 2:
                     continue
-                date_time = time.localtime(int(parts[0]))
-                print(f"{index}\t{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}\t{parts[1]}")
+                #date_time = time.localtime(int(parts[0]))
+                mtime = time.localtime(int(parts[0]))
+                print(f"{index}\t{mtime[0]}-{mtime[1]:02}-{mtime[2]:02} {mtime[3]:02}:{mtime[4]:02}.{mtime[5]:02}\t{parts[1]}")
+                #print(f"{index}\t{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}\t{parts[1]}")
 
     except Exception as e:
         print(f"Error reading history: {e}")

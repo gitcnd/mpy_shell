@@ -30,7 +30,7 @@ find	Search for files in a directory hierarchy\n$GRN find <path> $NORM Start sea
 sort	Sort lines of text files\n$GRN -r $NORM Reverse the result of comparisons\n$GRN -n $NORM Compare according to string numerical value
 mkdir	Make directories\n$GRN -p $NORM Create parent directories as needed
 df	Report file system disk space usage\n$GRN -h $NORM Human-readable sizes\n$GRN -i $NORM Display inode information
-free	show circuitpython memory usage
+free	show memory usage
 du	Estimate file space usage\n$GRN -h $NORM Human-readable sizes\n$GRN -s $NORM Display only a total for each argument
 rmdir	Remove empty directories\n$GRN --ignore-fail-on-non-empty $NORM Ignore each failure to remove a directory that is not empty
 touch	Change file timestamps or create an empty file

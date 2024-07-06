@@ -159,16 +159,16 @@ class CustomIO:
         
         if self._reading_esc:
             self._esc_seq += char
-            if time.ticks_ms() - self._lastread > 0.1:
-                self._reading_esc = False
-                self._esc_seq = ""
-                return self._line, "esc", self._cursor_pos
             if self._esc_seq[-1] in 'ABCDEFGH~Rnc': 
                 response = self._handle_esc_sequence(self._esc_seq[2:])
                 self._reading_esc = False
                 self._esc_seq = ""
                 if response:
                     return response
+            elif time.ticks_ms() - self._lastread > 100:
+                self._reading_esc = False
+                self._esc_seq = ""
+                return self._line, "esc", self._cursor_pos
         elif char == '\x1b':  # ESC sequence
             self._reading_esc = True
             self._esc_seq = char
@@ -353,7 +353,7 @@ class CustomIO:
                 #     return chars
                 # self.input_content += chars 
                 # self._lastread=time.ticks_ms()
-            elif time.ticks_ms()-self._lastread>0.1:
+            elif time.ticks_ms()-self._lastread > 100:
                 time.sleep(0.1)  # Small delay to prevent high CPU usage
 
         # Read from input files
@@ -568,7 +568,15 @@ class sh:
     def _rw_toml(shell, op, key, value=None):
         tmp = '/settings_new.toml'
 
-        infile = open(shell.settings_file, 'r')
+        try:
+            infile = open(shell.settings_file, 'r')
+        except OSError:
+            if op == 'w':
+                open(shell.settings_file, 'w').close() # create empty one if missing
+                infile = open(shell.settings_file, 'r')
+            else:
+                return None
+
         outfile = open(tmp, 'w') if op == "w" else None
     
         if True: # with open(shell.settings_file, 'r') as infile, open(tmp, 'w') as outfile:
