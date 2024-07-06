@@ -57,8 +57,11 @@ class CustomIO:
         self._TERM_TYPE = ""
         self._TERM_TYPE_EX = ""
 
-        if time.time() < 1718841600 and self.get_wifi_ip(): 
-            self.set_time()  # set the time if possible and not already set
+        if time.time() < 1718841600:
+            import network
+            if network.WLAN(network.STA_IF).isconnected(): # self.get_wifi_ip(): 
+                self.set_time()  # set the time if possible and not already set
+
 
     def get_wifi_ip(self):
         try:
@@ -537,8 +540,9 @@ class IORedirector:
 
 
 class sh:
-    def __init__(self):
+    def __init__(self,cio=None):
         self.settings_file = "/settings.toml"
+        self.cio=cio
         pass # self.history_file = "/history.txt"
 
 
@@ -1019,7 +1023,7 @@ def main():
     # Use the custom context manager to redirect stdout and stdin
     with IORedirector(custom_io):
 
-        shell = sh()
+        shell = sh(custom_io)
 
         # see sh1.py/test() for argument parsing tests
 

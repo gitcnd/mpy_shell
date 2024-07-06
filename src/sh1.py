@@ -395,6 +395,7 @@ def create(shell, cmdenv):
                 while True:
                     try:
                         line = input()
+                        if line=='\x04': break # mpy ^D
                         file.write(line.encode('utf-8') + b'\n')
                     except EOFError:
                         break
