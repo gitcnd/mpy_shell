@@ -1,6 +1,6 @@
 # sh.py
 
-__version__ = '1.0.20240706'  # Major.Minor.Patch
+__version__ = '1.0.20240707'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for iMicroPython.  https://github.com/gitcnd/mpy_shell
@@ -21,7 +21,16 @@ __version__ = '1.0.20240706'  # Major.Minor.Patch
 # https://chatgpt.com/share/41987e5d-4c73-432e-95cf-1e434479c1c1
 # 
 # 1718841600 # 2024/06/20 
-# /\<supervisor\>\|\<socketpool\>\|\<wifi\>
+# TODO: - telnetd - something is not making \n into \r\n properly...
+#  tab-completion on lib/part
+#  semicolons in commands
+#  only try setting time once
+#  dir something*.gz
+#  cp somethiong*.gz lib
+#  . exec
+#  from sh import run_blah
+#  .bashrc
+#
 
 import os
 import sys
@@ -30,17 +39,20 @@ import select
 import socket
 import gc
 import machine
+import binascii
 
 
 class CustomIO:
     def __init__(self):
         self.input_content = ""
         self.output_content = ""
-        self.sockets = []  # List of open TCP/IP sockets for both input and output
+        self.server_socket = None
+        self.sockets = []  # Dict of open TCP/IP client_socket connections for both input and output ['sock'] is the socket. ['addr'] is the client address. ['buf'] is the socket buffer. ['r'], ['w'], ['e'] is the state
         self.outfiles = []  # List of open file objects for output
         self.infiles = []   # List of open file objects for input
-        self.socket_buffers = {}  # Dictionary to store buffers for each socket
+        #self.socket_buffers = {}  # Dictionary to store buffers for each socket
         self.history_file = "/.history.txt"  # Path to the history file
+        self.shell=None     # telnetd sets this, so we can use get_desc
 
         self._nbuf = ""
         self._line = ""
@@ -56,6 +68,29 @@ class CustomIO:
         self._TERM_HEIGHT = 24
         self._TERM_TYPE = ""
         self._TERM_TYPE_EX = ""
+    
+        self.iac_cmds = [ # These need to be sent with specific timing to tell the client not to echo locally and exit line mode
+            # First set of commands from the server
+            b'\xff\xfd\x18'  # IAC DO TERMINAL TYPE
+            b'\xff\xfd\x20'  # IAC DO TSPEED
+            b'\xff\xfd\x23'  # IAC DO XDISPLOC
+            b'\xff\xfd\x27', # IAC DO NEW-ENVIRON
+        
+            # Second set of commands from the server
+            b'\xff\xfa\x20\x01\xff\xf0'  # IAC SB TSPEED SEND IAC SE
+            b'\xff\xfa\x27\x01\xff\xf0'  # IAC SB NEW-ENVIRON SEND IAC SE
+            b'\xff\xfa\x18\x01\xff\xf0', # IAC SB TERMINAL TYPE SEND IAC SE
+        
+            # Third set of commands from the server
+            b'\xff\xfb\x03'  # IAC WILL SUPPRESS GO AHEAD
+            b'\xff\xfd\x01'  # IAC DO ECHO
+            b'\xff\xfd\x1f'  # IAC DO NAWS
+            b'\xff\xfb\x05'  # IAC WILL STATUS
+            b'\xff\xfd\x06'  # IAC DO LFLOW
+            b'\xff\xfb\x01'  # IAC WILL ECHO
+        ]
+    
+    
 
         if time.time() < 1718841600:
             import network
@@ -73,11 +108,13 @@ class CustomIO:
 
     # Initialize buffers for sockets
     def initialize_buffers(self):
-        self.socket_buffers = {sock: "" for sock in self.sockets}
+        #self.socket_buffers = {sock: "" for sock in self.sockets}
+        sock[2] = {sock: "" for sock in self.sockets}
 
     def _read_nonblocking(self):
         if select.select([sys.stdin], [], [], 0)[0]:
             self._nbuf += sys.stdin.read(1)
+            #self._nbuf += sys.stdin.read() # hangs
 
             #print(f" got={self._nbuf} ") # cnd
 
@@ -322,61 +359,6 @@ class CustomIO:
         return None
 
 
-
-    # Read input from stdin, sockets, or files
-    def read_input(self):
-
-        # Read from stdin
-        chars=1 # keep doing this 'till we get nothing more
-        while chars:
-            #print("r1")
-            chars = self._read_nonblocking()
-            #print("r2")
-            if chars:
-
-                for char in chars:
-                    response = self._process_input(char)
-                    if response:
-                        user_input, key, cursor = response
-                        if key=='enter':
-                            if len(user_input):
-                                self.add_hist(user_input)
-                            return user_input
-                        elif key != 'sz': 
-                            oops=f" (mode {key} not implimented)";
-                            print(oops +  '\b' * (len(oops)), end='')
-
-                # #print("wt")
-                # self.send_chars_to_all(chars) # echo it
-                # #print("wd")
-                # if chars.endswith('\n'):
-                #     chars = self.input_content + chars.rstrip('\n') # don't append \n to the commandline
-                #     self.input_content = ""
-                #     self.add_hist(chars)
-                #     return chars
-                # self.input_content += chars 
-                # self._lastread=time.ticks_ms()
-            elif time.ticks_ms()-self._lastread > 100:
-                time.sleep(0.1)  # Small delay to prevent high CPU usage
-
-        # Read from input files
-        for file in self.infiles:
-            line = file.readline()
-            if line:
-                return line
-
-        # Read from sockets
-        for sock in self.sockets:
-            try:
-                data = sock.recv(1024).decode('utf-8')
-                if data:
-                    return data
-            except Exception as e:
-                continue
-
-        return None
-
-
     def add_hist(self, line, retry=True):
         try:
             with open(self.history_file, 'a') as hist_file:
@@ -391,6 +373,7 @@ class CustomIO:
                 except: 
                     pass
 
+
     def readline(self):
         if self.input_content:
             line = self.input_content
@@ -398,43 +381,177 @@ class CustomIO:
             return line
         raise EOFError("No more input")
 
-    # Send characters to all sockets and files
+    def _del_old_socks(self,sockdel):
+        for i in sockdel:
+            client_socket=self.sockets[i]
+            client_socket['sock'].close()
+            print(f"Closed telnet client {i} IP {client_socket['addr']}")
+            del self.sockets[i]
+
+    def telnetd(self, shell, port=None): # see sh2.py which calls this
+        import network
+        self.shell=shell
+
+        sta_if = network.WLAN(network.STA_IF)
+        sta_if.active(True)
+        ip_address = sta_if.ifconfig()[0]
+
+        # Create a non-blocking socket
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.setblocking(False)
+        self.server_socket.bind((ip_address, port))
+        self.server_socket.listen(1)
+
+        print("Telnet server started on IP", ip_address, "port", port)
+
+
+
+    # Read input from stdin, sockets, or files
+    def read_input(self):
+
+        # Read from input files
+        for file in self.infiles:
+            line = file.readline()
+            if line:
+                return line
+
+        # Read from stdin
+        chars=1 # keep doing this 'till we get nothing more
+        while chars:
+            #print("r1")
+            chars = self._read_nonblocking()
+
+            # Read from sockets
+            sockdel=[]
+            for i, client_socket in enumerate(self.sockets):
+                client_socket['r'], _, client_socket['e'] = select.select([client_socket['sock']], [], [client_socket['sock']], 0)
+                for s in client_socket['r']:
+                    try:
+                        data = client_socket['sock'].recv(1024).decode('utf-8')
+                        if data:
+                            chars = chars + data if chars else data
+                        else:
+                            print("EOF ", client_socket['addr'])
+                            sockdel.insert(0,i) # remember to close it shortly (backwards from end, so index numbers don't change in the middle)
+                    except Exception as e:
+                        print("read Exception ",e, "on ", client_socket['addr'])
+                        continue
+    
+                for s in client_socket['e']:
+                    print("Handling exceptional condition for", client_socket['addr'])
+                    if i not in sockdel:
+                        sockdel.insert(0,i) # remember to close it shortly (backwards from end, so index numbers don't change in the middle)
+    
+            self._del_old_socks(sockdel)
+    
+    
+            if self.server_socket:# Accept new connections
+                readable, _, exceptional = select.select([self.server_socket], [], [self.server_socket], 0)
+                for s in exceptional:
+                    print("server_socket err?",s)
+                for s in readable:
+                    # Handle new connection
+                    client_sock, client_addr = self.server_socket.accept() # client_socket['sock'] is the socket, client_socket['addr'] is the address
+                    self.sockets.append({
+                        'sock': client_sock,
+                        'addr': client_addr, 
+                        'buf': b'', 
+                        'r': "", 
+                        'w': "", 
+                        'e': ""
+                    })
+        
+                    print("Connection from", client_addr)
+                    client_sock.setblocking(False)
+        
+                    # Tell the new connection to set up their terminal for us
+                    for i, cmd in enumerate(self.iac_cmds):
+                        #print("sent: ", binascii.hexlify(cmd))
+                        client_sock.send(cmd)
+                        # Wait for the client to respond
+                        time.sleep(0.1)
+                        ready_to_read, _, _ = select.select([client_sock], [], [], 5)
+                        if ready_to_read:
+                            ignore = client_sock.recv(1024)
+                            #if ignore:
+                            #    print("got: ", binascii.hexlify(ignore))
+                        else:
+                            print(f"No response from client {client_addr} within timeout. Disconnected")
+                            client_sock.close()
+                            del self.sockets[-1]
+
+            if chars:
+
+                for char in chars:
+                    response = self._process_input(char)
+                    if response:
+                        user_input, key, cursor = response
+                        if key=='enter':
+                            if len(user_input):
+                                self.add_hist(user_input)
+                            return user_input
+                        elif key != 'sz': 
+                            oops=f" (mode {key} not implimented)";
+                            print(oops +  '\b' * (len(oops)), end='')
+
+            elif time.ticks_ms()-self._lastread > 100:
+                time.sleep(0.1)  # Small delay to prevent high CPU usage
+
+        return None
+
+
+    # Send characters to all sockets and files. should be called often with '' for flushing slow sockets (until it says all-gone)
     def send_chars_to_all(self, chars):
         if chars:
-            chars = chars.replace('\\n', '\r\n')  # Convert LF to CRLF
-            sys.stdout.write(chars) # + "\x1b[s\x1b[1B\x1b[1C\x1b[u")
+            chars = chars.replace('\r\n', '\n').replace('\n', '\r\n') # # Convert LF to CRLF (not breaking any existing ones)
+            #if isinstance(chars, bytes):
+            #    print("BAD");exit();#chars = chars.replace(b'\\n', b'\r\n')  # Convert LF to CRLF
+            #else:
+            #    chars = chars.replace('\\n', '\r\n')  # Convert LF to CRLF
+
+            #chars= binascii.hexlify(chars)
+
+
+            # Send to stdout
+            sys.stdout.write(chars)
             # sys.stdout.flush() # AttributeError: 'FileIO' object has no attribute 'flush'
+
             # Send to all output files
             for file in self.outfiles:
                 try:
                     file.write(chars)
                     file.flush()
                 except Exception as e:
-                    print(self.get_desc('3').format(e)) #  File write exception: {}
+                    print(self.shell.get_desc('3').format(e)) #  File write exception: {}
 
         # Flag to check if any buffer has remaining data
         any_buffer_non_empty = False
 
         # Send to all sockets
-        for sock in self.sockets:
-            try:
-                if self.socket_buffers[sock]:
-                    chars_to_send = self.socket_buffers[sock] + chars
-                    sock.send(chars_to_send.encode('utf-8'))
-                    self.socket_buffers[sock] = ""
-                else:
-                    sock.send(chars.encode('utf-8'))
-            except Exception as e:
-                print(self.get_desc('4').format(e)) # Socket send exception: {}
-                self.socket_buffers[sock] += chars
-                if len(self.socket_buffers[sock]) > 80:
-                    self.socket_buffers[sock] = self.socket_buffers[sock][-80:]  # Keep only the last 80 chars
+        sockdel=[]
+        for i, client_socket in enumerate(self.sockets):
+            client_socket['buf'] += chars.encode('utf-8')
+            if client_socket['buf']:
+                _, client_socket['w'], client_socket['e'] = select.select([], [client_socket['sock']], [client_socket['sock']], 0)
+                for s in client_socket['w']:
+                    try:
+                        bsent=client_socket['sock'].send(client_socket['buf'])
+                        client_socket['buf'] = client_socket['buf'][bsent:]  # Fix partial sends by updating the buffer
+                    except Exception as e:
+                        print(self.shell.get_desc('4').format(e)) # Socket send exception: {}
+                        sockdel.insert(0,i) # remember to close it shortly
 
-            # Update the flag if there is still data in the buffer
-            if self.socket_buffers[sock]:
+            if client_socket['buf']: # Update the flag if there is still data in the buffer
                 any_buffer_non_empty = True
 
+            if len(client_socket['buf']) > 80:
+                client_socket['buf'] = client_socket['buf'][-80:]  # Keep only the last 80 chars
+
+        self._del_old_socks(sockdel)
+
         return any_buffer_non_empty
+
 
     # Method to open an output file
     def open_output_file(self, filepath):
@@ -443,7 +560,7 @@ class CustomIO:
             self.outfiles.append(file)
             #print("Output file opened successfully.")
         except Exception as e:
-            print(self.get_desc('5').format(e)) # Output file setup failed: {}
+            print(self.shell.get_desc('5').format(e)) # Output file setup failed: {}
 
     # Method to open an input file
     def open_input_file(self, filepath):
@@ -452,7 +569,7 @@ class CustomIO:
             self.infiles.append(file)
             #print("Input file opened successfully.")
         except Exception as e:
-            print(self.get_desc('6').format(e)) # Input file setup failed: {}
+            print(self.shell.get_desc('6').format(e)) # Input file setup failed: {}
 
     # Method to open a socket
 
@@ -464,7 +581,7 @@ class CustomIO:
             self.sockets.append(sock)
             self.initialize_buffers()
         except Exception as e:
-            print(self.get_desc('7').format(e))  # Socket setup failed: {}
+            print(self.shell.get_desc('7').format(e))  # Socket setup failed: {}
 
     """ # Method to open a listening socket on port 23 for Telnet
     def open_listening_socket(self, port=23):
@@ -500,7 +617,7 @@ class CustomIO:
             rtc.datetime( time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800 - 946728000) ) # NTP timestamp starts from 1900, Unix from 1970
             #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
         #except Exception as e:
-        #    print(self.get_desc('8').format(e))  # Failed to get NTP time: {}
+        #    print(self.shell.get_desc('8').format(e))  # Failed to get NTP time: {}
         #finally:
             sock.close()
         print("Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
@@ -543,6 +660,8 @@ class sh:
     def __init__(self,cio=None):
         self.settings_file = "/settings.toml"
         self.cio=cio
+        #self.get_desc=cio.get_desc
+        #self.subst_env=cio.subst_env
         pass # self.history_file = "/history.txt"
 
 
@@ -657,7 +776,24 @@ class sh:
         return shell._rw_toml('r',key) or dflt
 
 
-    # """For reading help and error messages etc out of a text file"""
+    def subst_env(self, value):
+        result = ''
+        i = 0
+        while i < len(value):
+            if value[i] == '\\' and i + 1 < len(value) and value[i + 1] == '$':
+                result += '$'
+                i += 2
+            elif value[i] == '$':
+                i += 1
+                i, expanded = self.exp_env(i,value)
+                result += expanded
+            else:
+                result += value[i]
+                i += 1
+        return result
+
+
+    # For reading help and error messages etc out of a text file
     def get_desc(self,keyword):
         with open(__file__.rsplit('.', 1)[0] + '.txt', 'r') as file:   # /lib/sh.txt
             for line in file:
@@ -669,6 +805,7 @@ class sh:
                     return 'corrupt help file'
 
         return None
+
 
     # error-message expander helpers
     def _ea(shell, cmdenv):
@@ -684,32 +821,6 @@ class sh:
             return True
         except OSError:
             return False
-
-
-    # """Replace environment variables in the argument."""
-    def subst_envo(self, value):
-        result = ''
-        i = 0
-        while i < len(value):
-            if value[i] == '\\' and i + 1 < len(value) and value[i + 1] == '$':
-                result += '$'
-                i += 2
-            elif value[i] == '$' and i + 1 < len(value) and value[i + 1].isalpha():
-                var_start = i + 1
-                var_end = var_start
-                while var_end < len(value) and (value[var_end].isalpha() or value[var_end].isdigit() or value[var_end] == '_'):
-                    var_end += 1
-                var_name = value[var_start:var_end]
-                env_value = self.os_getenv(var_name)
-                if env_value is not None:
-                    result += env_value
-                else:
-                    result += f'${var_name}'
-                i = var_end
-            else:
-                result += value[i]
-                i += 1
-        return result
 
 
     def exp_env(self,start,value):
@@ -729,22 +840,6 @@ class sh:
             var_name = value[start:end]
             var_value = self.os_getenv(var_name, f'${var_name}')
             return end, var_value
-
-    def subst_env(self, value):
-        result = ''
-        i = 0
-        while i < len(value):
-            if value[i] == '\\' and i + 1 < len(value) and value[i + 1] == '$':
-                result += '$'
-                i += 2
-            elif value[i] == '$':
-                i += 1
-                i, expanded = self.exp_env(i,value)
-                result += expanded
-            else:
-                result += value[i]
-                i += 1
-        return result
 
 
     def parse_command_line(self, command_line):
@@ -1038,7 +1133,7 @@ def main():
         print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # Request terminal size.
         while run>0:
             run=1
-            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} cpy\$ ").format(os.getcwd())) # the stuff in the middle is the prompt
+            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} mpy\$ ").format(os.getcwd())) # the stuff in the middle is the prompt
             if user_input:
                 #print("#############")
                 #print(''.join(f' 0x{ord(c):02X} ' if ord(c) < 0x20 else c for c in user_input))

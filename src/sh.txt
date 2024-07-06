@@ -121,6 +121,7 @@ umount	Un-attach the SD card
 run	Execute a Python program from the shell\n$GRN run <file> $NORM Run the specified Python file
 espnowreceiver	Show incoming espnow messages
 espnowsender	Send espnow messages\n$GRN espnowsender <message> $NORM Send the specified message
+espnow	Send/receive espnow messages\n$GRN espnow $YEL[options]$NORM (all options are optional)\n$GRN $YEL--op=<send|rec>$NORM  send or recieve mode. default --op=rec\n$GRN $YEL--channel=2$NORM   default: use current (same as wifi A/P) channel\n$GRN $YEL--msg="<some message>"$NORM  default: Hello...\n$GRN $YEL--one$NORM  exit after recieving one message
 hardreset	Reboot the chip
 memtest	Test memory
 bluescan	Show visible Bluetooth devices and data
