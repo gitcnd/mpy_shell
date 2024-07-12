@@ -21,7 +21,7 @@ __version__ = '1.0.20240707'  # Major.Minor.Patch
 # https://chatgpt.com/share/41987e5d-4c73-432e-95cf-1e434479c1c1
 # 
 # 1718841600 # 2024/06/20 
-# TODO: - telnetd - something is not making \n into \r\n properly...
+# TODO:
 #  tab-completion on lib/part
 #  semicolons in commands
 #  only try setting time once
@@ -30,7 +30,10 @@ __version__ = '1.0.20240707'  # Major.Minor.Patch
 #  . exec
 #  from sh import run_blah
 #  .bashrc
-#
+#   telnet authentication
+#   remove sh1._write_toml => shell._rw_toml
+# handle ^C in telnet
+# add -S to ls
 
 import os
 import sys
@@ -89,7 +92,11 @@ class CustomIO:
             b'\xff\xfd\x06'  # IAC DO LFLOW
             b'\xff\xfb\x01'  # IAC WILL ECHO
         ]
-    
+        # no good - line mode problems still
+        #self.iac_cmds = [ # These need to be sent with specific timing to tell the client not to echo locally and exit line mode
+        #    bytes([255, 252, 34]), # dont allow line mode
+        #    bytes([255, 251, 1])  # turn off local echo
+        #]
     
 
         if time.time() < 1718841600:
@@ -212,6 +219,9 @@ class CustomIO:
         elif char == '\x1b':  # ESC sequence
             self._reading_esc = True
             self._esc_seq = char
+        elif char == '\x03':  # ctrl-C ^C
+            print("KeyboardInterrupt:")
+            raise KeyboardInterrupt
         elif char in ['\x7f', '\b']:  # Backspace
             if self._cursor_pos > 0:
                 self._line = self._line[:self._cursor_pos - 1] + self._line[self._cursor_pos:]
@@ -388,7 +398,7 @@ class CustomIO:
             print(f"Closed telnet client {i} IP {client_socket['addr']}")
             del self.sockets[i]
 
-    def telnetd(self, shell, port=None): # see sh2.py which calls this
+    def telnetd(self, shell, port=None): # see sh2.py which calls this via:    shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
         import network
         self.shell=shell
 
@@ -403,6 +413,7 @@ class CustomIO:
         self.server_socket.bind((ip_address, port))
         self.server_socket.listen(1)
 
+        self.tspassword='pass'
         print("Telnet server started on IP", ip_address, "port", port)
 
 
@@ -427,16 +438,33 @@ class CustomIO:
             for i, client_socket in enumerate(self.sockets):
                 client_socket['r'], _, client_socket['e'] = select.select([client_socket['sock']], [], [client_socket['sock']], 0)
                 for s in client_socket['r']:
-                    try:
-                        data = client_socket['sock'].recv(1024).decode('utf-8')
+                    if 1:#try:
+                        data = client_socket['sock'].recv(1024).decode('utf-8').rstrip('\000')
                         if data:
-                            chars = chars + data if chars else data
+                            if 'a' in client_socket: # not authenticated yet
+                                client_socket['a'] += data
+                                if ord(client_socket['a'][-1]) == 0x0d or len(client_socket['a'])>63: # caution; neither client_socket['a'][-1]=='\n' nor client_socket['a'].endswith('\n') work here!
+                                    client_socket['a'] = client_socket['a'][:-1] # .rstrip('\n') does not work here
+                                    if client_socket['a'] == self.tspassword:
+                                        import network
+                                        del client_socket['a'] # this lets them in
+                                        #client_socket['sock'].send()
+                                        client_socket['buf']="\r\nWelcome to {} - {} Micropython {} on {}\r\n".format(network.WLAN(network.STA_IF).config('hostname'),os.uname().sysname,os.uname().version,os.uname().machine).encode('utf-8')
+                                        print("",end='')
+                                    else:
+                                        try:
+                                            client_socket['sock'].send(b'wrong.\r\n')
+                                        except:
+                                            pass
+                                        sockdel.insert(0,i) # kick off the attempt
+                            else:
+                                chars = chars + data if chars else data
                         else:
                             print("EOF ", client_socket['addr'])
                             sockdel.insert(0,i) # remember to close it shortly (backwards from end, so index numbers don't change in the middle)
-                    except Exception as e:
-                        print("read Exception ",e, "on ", client_socket['addr'])
-                        continue
+                    #except Exception as e:
+                    #    print("read Exception ",e, "on ", client_socket['addr'])
+                    #    continue
     
                 for s in client_socket['e']:
                     print("Handling exceptional condition for", client_socket['addr'])
@@ -459,27 +487,29 @@ class CustomIO:
                         'buf': b'', 
                         'r': "", 
                         'w': "", 
-                        'e': ""
+                        'e': "",
+                        'a': "" # unauthenticated
                     })
         
                     print("Connection from", client_addr)
                     client_sock.setblocking(False)
         
                     # Tell the new connection to set up their terminal for us
-                    for i, cmd in enumerate(self.iac_cmds):
+                    for i, cmd in enumerate(self.iac_cmds + [b'Password: ']):
                         #print("sent: ", binascii.hexlify(cmd))
                         client_sock.send(cmd)
                         # Wait for the client to respond
                         time.sleep(0.1)
-                        ready_to_read, _, _ = select.select([client_sock], [], [], 5)
-                        if ready_to_read:
-                            ignore = client_sock.recv(1024)
-                            #if ignore:
-                            #    print("got: ", binascii.hexlify(ignore))
-                        else:
-                            print(f"No response from client {client_addr} within timeout. Disconnected")
-                            client_sock.close()
-                            del self.sockets[-1]
+                        if i>2:
+                            ready_to_read, _, _ = select.select([client_sock], [], [], 5)
+                            if ready_to_read:
+                                ignore = client_sock.recv(1024)
+                                #if ignore:
+                                #    print("got: ", binascii.hexlify(ignore))
+                            else:
+                                print(f"No response from client {client_addr} within timeout. Disconnected")
+                                client_sock.close()
+                                del self.sockets[-1]
 
             if chars:
 
@@ -531,6 +561,8 @@ class CustomIO:
         # Send to all sockets
         sockdel=[]
         for i, client_socket in enumerate(self.sockets):
+            if 'a' in client_socket:
+                continue # as-yet unauthenticated connection
             client_socket['buf'] += chars.encode('utf-8')
             if client_socket['buf']:
                 _, client_socket['w'], client_socket['e'] = select.select([], [client_socket['sock']], [client_socket['sock']], 0)

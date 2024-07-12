@@ -53,6 +53,8 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
                 tsort.append((pt[7], ret))
             elif cmdenv['sw'].get('S'):
                 tsort.append((pt[6], ret))
+            elif cmdenv['sw'].get('s'):
+                tsort.append((-pt[6], ret))
             else:
                 print(ret)
 
@@ -72,7 +74,7 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
         except OSError:
             print(f"{path} Not found")  # Handle non-existent paths
 
-    if cmdenv['sw'].get('t') or cmdenv['sw'].get('S'):
+    if cmdenv['sw'].get('t') or cmdenv['sw'].get('S') or cmdenv['sw'].get('s'):
         for _, ret in sorted(tsort, reverse=not bool(cmdenv['sw'].get('r'))):
             print(ret)
 
