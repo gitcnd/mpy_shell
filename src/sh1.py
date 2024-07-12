@@ -288,6 +288,18 @@ def run2(shell, cmdenv):
             #    break
 
 
+def edit(shell, cmdenv):
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv)  # print("cat: missing file operand")
+    else:
+        try:
+            import pye
+            pye.pye(cmdenv['args'][1])
+            del sys.modules['pye']
+        except Exception as e:
+            shell._ee(cmdenv, e)  # print(f"edit: {e}")
+
+
 def cat(shell, cmdenv):
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv)  # print("cat: missing file operand")
