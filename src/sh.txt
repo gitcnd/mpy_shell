@@ -38,7 +38,7 @@ XXtouch	Change file timestamps or create an empty file\n$GRN -c $NORM Do not cre
 vi	vim-like Text editor
 man	Display manual pages for commands\n$GRN man <command> $NORM Show the manual page for the specified command
 nano	Text editor
-edit	Text editor
+edit	Text editor. Use Ctrl-S <enter> to save, and Ctrl-Q to exit
 grep	Search text using patterns\n$GRN -i $NORM Ignore case distinctions\n$GRN -r $NORM Read all files under each directory recursively\n$GRN -v $NORM Select non-matching lines
 cat	Concatenate and display files
 tail	Output the last part of files\n$GRN -n $NORM Output the last N lines\n$GRN -f $NORM Output appended data as the file grows
@@ -56,7 +56,7 @@ hostname	Show or set the system's hostname
 date	Display or set the system date and time
 whois	Query domain name information
 env	Display or set environment variables
-setenv	Set environment variables
+set	Set environment variables
 export	Set environment variables
 printenv	Print all or part of the environment
 diff	Compare files line by line\n$GRN -u $NORM Output in unified format\n$GRN -q $NORM Report only when files differ
@@ -103,7 +103,7 @@ sha1sum	Calculate SHA-1 checksums
 sha256sum	Calculate SHA-256 checksums
 hexedit	View and edit files in hexadecimal format
 blink	Flash the device LED
-set	Set the state of a GPIO pin\n$GRN set <pin> <state> $NORM Set specified pin to high or low state
+setpin	Set the state of a GPIO pin\n$GRN set --pin=<pin> --value=<state> $NORM Set specified pin to high (1) or low (0) state
 pins	Display the input coming in to a GPIO pin\n$GRN pins <pin> $NORM Display input for the specified pin
 adc	Display the analogue input from a GPIO\n$GRN adc <pin> $NORM Display analogue input for the specified pin
 button	Display the state of the default button

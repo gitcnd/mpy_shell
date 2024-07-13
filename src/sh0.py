@@ -24,6 +24,8 @@ def sort(shell,cmdenv):  # 53 bytes
 def reboot(shell, cmdenv): # 85 bytes
     import machine
     print("Rebooting...")
+    machine.deepsleep(100)  # Sleep for 100 milliseconds - causes esp32 to reset
+    time.sleep(150)
     machine.reset()
 
 # f="/.history.txt"
@@ -297,6 +299,25 @@ def clear(shell, cmdenv):
 
 def cls(shell, cmdenv):
     print("\033[2J", end='')  # ANSI escape code to clear screen
+
+
+def setpin(shell, cmdenv):
+    import machine
+    if not 'pin' in cmdenv['sw'] or not 'value' in cmdenv['sw']:
+        print("usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
+    else:
+        #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
+        led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
+        led.value(int(cmdenv['sw']['value']))
+
+def get(shell, cmdenv):
+    import machine
+    if not 'pin' in cmdenv['sw']:
+        print("usage: get --pin=<pin_number>")
+    else:
+        led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
+        print("pin {} is {}".format(cmdenv['sw']['pin'], led.value()))
+
 
 
 def _scrsize(shell, cmdenv):
