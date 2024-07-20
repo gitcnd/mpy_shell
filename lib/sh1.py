@@ -19,11 +19,11 @@ def man(shell,cmdenv):
         keyword = cmdenv['args'][1]
         description = shell.get_desc(keyword)
         if description:
-            print(shell.subst_env(f"\n${{WHT}}{keyword}${{NORM}} - " + description)) # we deliberately want the description $VARS to be expanded
+            print(shell.subst_env(f"${{WHT}}{keyword}${{NORM}} - " + description)) # we deliberately want the description $VARS to be expanded
         else:
-            print(shell.get_desc('1').format(keyword))       # f"No manual entry for {keyword}"
+            print(shell.get_desc(1).format(keyword))       # f"No manual entry for {keyword}"
     else:
-        print(shell.get_desc('2'))                       # "Usage: man [keyword]"
+        print(shell.get_desc(2))                       # "Usage: man [keyword]"
 
 
 def _iter_cmds():

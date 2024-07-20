@@ -7,7 +7,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 
 ## Installation and running:
 
-* place the .mpy files for your version into /lib/ on your MicroPython device
+* place the .mpy files for your MicroPython version (or the .py source files for any) into /lib/ on your MicroPython device
 * run `import sh` from the >>> repl
 
 \>>> ` import sh `
@@ -33,7 +33,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 ### Text Processing
 - `vi` - vim-like Text editor  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `nano` - Text editor  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `edit` - Text editor  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `edit` - pye text editor
 - `grep` - Search text using patterns  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `cat` - Concatenate and display files
 - `tail` - Output the last part of files  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
@@ -67,7 +67,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `scp` - Secure copy (remote file copy program)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `telnet` - User interface to the TELNET protocol  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `nc` - netcat arbitrary TCP and UDP connections and listens  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `ifconfig` - Configure network interfaces  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `ifconfig` - Configure network interfaces 
 - `ftp` - File Transfer Protocol client  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 
 ### Package Management
@@ -92,7 +92,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `locate` - Find files by name  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `sz` - Send files (ZModem)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `rz` - Receive files (ZModem)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `now` - Display the current date and time (alias for `date`)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `now` - Display the current date and time (alias for `date`)
 - `who` - Show who is logged on  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `which` - Locate a command
 - `clear` - Clear the terminal screen
@@ -101,7 +101,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `passwd` - Change user password  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `sleep` - Delay for a specified amount of time
 - `unalias` - Remove alias definitions  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `alias` - Create an alias for a command  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `alias` - Create an alias for a command
 - `exit` - Exit the shell
 - `help` - Display help information about built-in commands
 - `md5sum` - Calculate MD5 checksums  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
@@ -111,7 +111,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 
 ### Hardware Extensions
 - `blink` - flash the device LED  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `set` - set the state of a GPIO pin  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `setpin` - set the state of a GPIO pin
 - `pins` - display the input coming in to a GPIO pin  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `adc` - display the analogue input from a GPIO  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `button` - display the state of the default button  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
@@ -146,7 +146,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `gps` - display your latitude and longitude  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `radar` - output data from your attached radar device  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 ####
-- `telnetd` - listen for terminal input over TCP/IP  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `telnetd` - listen for terminal input over TCP/IP
 ####
 - `wifi` - control your wifi settings  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 

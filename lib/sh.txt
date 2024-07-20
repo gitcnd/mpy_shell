@@ -19,6 +19,14 @@ version	1.0.20240626
 17	Request timeout for icmp_seq {}
 18	--- {} ping statistics ---\n{} packets transmitted, {} received, {:.0f}% packet loss, time {:.0f}ms
 19	rtt min/avg/max/mdev = {:.3f}/{:.3f}/{:.3f}/{:.3f} ms
+20	Unknown
+21	Power on
+22	Hardware
+23	Watchdog
+24	Deep sleep
+25	Soft
+26	CPU last reset reason {}: {} reset
+27	Rebooting...
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -92,6 +100,7 @@ clear	Clear the terminal screen
 cls	Clear the terminal screen
 reboot	Reboot the system
 poweroff	Halt, power-off, or reboot the machine
+reason	Print the reason for the last reboot
 passwd	Change user password
 sleep	Delay for a specified amount of time
 unalias	Remove alias definitions

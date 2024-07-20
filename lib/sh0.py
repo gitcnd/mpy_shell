@@ -12,7 +12,7 @@ import os
 import time
 
 
-#print(self.get_desc('4').format(e)) # Socket send exception: {}
+#print(self.get_desc(4).format(e)) # Socket send exception: {}
 def _bare(f):
     if f.endswith('/') and len(f) > 1:
         f = f.rstrip('/')
@@ -21,12 +21,19 @@ def _bare(f):
 def sort(shell,cmdenv):  # 53 bytes
     return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
 
-def reboot(shell, cmdenv): # 85 bytes
+def reboot(shell, cmdenv):
     import machine
-    print("Rebooting...")
+    #print("Rebooting...") # Anything over 7 bytes is less to do a print(shell.get_desc(...)) on
+    print(shell.get_desc(27)) # Rebooting... (this is 5 bytes less than above)
     machine.deepsleep(100)  # Sleep for 100 milliseconds - causes esp32 to reset
     time.sleep(150)
     machine.reset()
+
+def reason(shell, cmdenv):
+    import machine
+    r = machine.reset_cause()
+    print(shell.get_desc(26).format(r,shell.get_desc(20+r))) # Rebooting...
+
 
 # f="/.history.txt"
 # import os
@@ -41,7 +48,7 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
             if (f.startswith('.') or ("/." in f and '/' not in f.split("/.")[-1])) and not cmdenv['sw'].get('a'): continue
             #print(f"f={f}")
             if not shell.file_exists(f):
-                print(shell.get_desc('12').format(cmdenv['args'][0], f))  # ls: cannot access 'sdf': No such file or directory
+                print(shell.get_desc(12).format(cmdenv['args'][0], f))  # ls: cannot access 'sdf': No such file or directory
                 continue
             pt = os.stat(f)
             fsize = shell.human_size(pt[6]) if cmdenv['sw'].get('h') else pt[6]
@@ -83,7 +90,7 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
 
 def cd(shell, cmdenv):
     if len(cmdenv['args']) < 2:
-        shell._ea(cmdenv) # print(self.get_desc('9').format(cmdenv['args'][0])) # {}: missing operand(s)
+        shell._ea(cmdenv) # print(self.get_desc(9).format(cmdenv['args'][0])) # {}: missing operand(s)
     else:
         try:
             os.chdir(cmdenv['args'][1])
@@ -144,7 +151,7 @@ def mv(shell, cmdenv):
                 except OSError as e:
                     shell._ee(cmdenv, e)  # print(f"mv: {e}")
             else:
-                print(shell.get_desc('11').format(cmd, target))  # {}: target '{}' is not a directory
+                print(shell.get_desc(11).format(cmd, target))  # {}: target '{}' is not a directory
 
 def cp(shell, cmdenv):
     mv(shell, cmdenv)  # mv knows to do a cp if that was the command.
@@ -237,7 +244,7 @@ def ping(shell, cmdenv):
     import wifi
     if len(cmdenv['args']) < 2:
         #print("usage: ping <address>")
-        print(shell.get_desc('14')) # usage: ping <address>
+        print(shell.get_desc(14)) # usage: ping <address>
         return
 
     dom = cmdenv['args'][1]
@@ -250,11 +257,11 @@ def ping(shell, cmdenv):
         ip1 = ipaddress.ip_address(ip)
     except Exception as e:
         #print(f'Error getting IP address: {e}') # saves 21 bytes
-        print(shell.get_desc('15').format(e)) # Error getting IP address: {e}
+        print(shell.get_desc(15).format(e)) # Error getting IP address: {e}
         return
 
     #print(f"PING {dom} ({ip}) 56(84) bytes of data.")
-    print(shell.get_desc('16').format(dom,ip)) # PING {dom} ({ip}) 56(84) bytes of data.
+    print(shell.get_desc(16).format(dom,ip)) # PING {dom} ({ip}) 56(84) bytes of data.
     
     packet_count = 4
     transmitted = 0
@@ -276,13 +283,13 @@ def ping(shell, cmdenv):
             print(f"64 bytes from {ip}: icmp_seq={seq} time={rtt:.1f} ms")
         else:
             #print(f"Request timeout for icmp_seq {seq}")
-            print(shell.get_desc('17').format(seq)) # Request timeout for icmp_seq {seq}
+            print(shell.get_desc(17).format(seq)) # Request timeout for icmp_seq {seq}
         
         if rtt<1000 and seq<packet_count:
             time.sleep((1000-rtt)/1000)
 
     #print(f"--- {ip} ping statistics ---\n{transmitted} packets transmitted, {received} received, {((transmitted - received) / transmitted) * 100:.0f}% packet loss, time {total_time:.0f}ms")
-    print(shell.get_desc('18').format(ip,transmitted,received,((transmitted - received) / transmitted) * 100,total_time)) # --- {ip} ping statistics ---\n{transmitted} packets transmitted, {received} received, {((transmitted - received) / transmitted) * 100:.0f}% packet loss, time {total_time:.0f}ms
+    print(shell.get_desc(18).format(ip,transmitted,received,((transmitted - received) / transmitted) * 100,total_time)) # --- {ip} ping statistics ---\n{transmitted} packets transmitted, {received} received, {((transmitted - received) / transmitted) * 100:.0f}% packet loss, time {total_time:.0f}ms
 
     if times:
         min_time = min(times)
@@ -290,7 +297,7 @@ def ping(shell, cmdenv):
         max_time = max(times)
         mdev_time = (sum((x - avg_time) ** 2 for x in times) / len(times)) ** 0.5
         #print(f"rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms")
-        print(shell.get_desc('19').format(min_time,avg_time,max_time,mdev_time)) # rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms
+        print(shell.get_desc(19).format(min_time,avg_time,max_time,mdev_time)) # rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms
 
 
 def clear(shell, cmdenv):

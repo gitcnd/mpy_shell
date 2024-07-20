@@ -358,7 +358,7 @@ class CustomIO:
             try:
                 self._TERM_HEIGHT, self._TERM_WIDTH = map(int, seq[:-1].split(';'))
             except Exception as e:
-                print(f"term-size set command {seq[:-1]} error: {e}")
+                print("term-size set command {} error: {}; seq={}",format(seq[:-1],e,  binascii.hexlify(seq)  ))
             return self._line, 'sz', self._cursor_pos
         elif seq.startswith('>') and seq.endswith('c'):  # Extended device Attributes
             self._TERM_TYPE_EX = seq[1:-1]
@@ -721,7 +721,8 @@ class sh:
 
 
     def _rw_toml(shell, op, key, value=None):
-        tmp = '/settings_new.toml'
+        tmp = file.rsplit('.', 1)[0] + "_new." + file.rsplit('.', 1)[1] # /settings_new.toml
+        old = file.rsplit('.', 1)[0] + "_old." + file.rsplit('.', 1)[1] # /settings_old.toml
 
         try:
             infile = open(shell.settings_file, 'r')
@@ -780,11 +781,12 @@ class sh:
                             elif value == '':
                                 line='' # Delete the variable
                                 continue
-                            else:
+                            elif key:
                                 if value[0] in '+-.0123456789"\'': # Update the variable
                                     line = f'{key} = {value}\n'
                                 else:
-                                    line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
+                                    #line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
+                                    line = '{} = "{}"\n'.format(key, value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t"))
                                 key=None
     
                 in_multiline = False
@@ -799,7 +801,7 @@ class sh:
             outfile.close()
             # Replace old settings with the new settings
             import sh0  # load mv command
-            sh0.mv(shell, {'sw': {}, 'args': ['mv', shell.settings_file, '/settings_old.toml']})
+            sh0.mv(shell, {'sw': {}, 'args': ['mv', shell.settings_file, old]}) # '/settings_old.toml'
             sh0.mv(shell, {'sw': {}, 'args': ['mv', tmp, shell.settings_file]})
             del sys.modules['sh0']
     
@@ -831,8 +833,8 @@ class sh:
             for line in file:
                 try:
                     key, description = line.split('\t', 1)
-                    if key == keyword:
-                        return self.subst_env(description.strip())
+                    if key == str(keyword):
+                        return self.subst_env(description.strip()).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
                 except: 
                     return 'corrupt help file'
 
