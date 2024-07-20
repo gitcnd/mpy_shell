@@ -1,6 +1,6 @@
 # sh.py
 
-__version__ = '1.0.20240707'  # Major.Minor.Patch
+__version__ = '1.0.20240720'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for iMicroPython.  https://github.com/gitcnd/mpy_shell
@@ -721,8 +721,8 @@ class sh:
 
 
     def _rw_toml(shell, op, key, value=None):
-        tmp = file.rsplit('.', 1)[0] + "_new." + file.rsplit('.', 1)[1] # /settings_new.toml
-        old = file.rsplit('.', 1)[0] + "_old." + file.rsplit('.', 1)[1] # /settings_old.toml
+        tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
+        old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
 
         try:
             infile = open(shell.settings_file, 'r')
@@ -735,67 +735,69 @@ class sh:
 
         outfile = open(tmp, 'w') if op == "w" else None
     
-        if True: # with open(shell.settings_file, 'r') as infile, open(tmp, 'w') as outfile:
-            in_multiline = False
-            extra_iteration = 0
-            line = ''
-    
-            while True:
-                #print(f"L extra_iteration={extra_iteration} n_multiline={in_multiline} ")
-                if extra_iteration < 1:
-                    iline = infile.readline()
-                    if not iline:
-                        extra_iteration = 1
-                        iline = ''  # Trigger the final block execution
-                elif extra_iteration == 2:
-                    extra_iteration = 0
+        in_multiline = False
+        extra_iteration = 0
+        line = ''
+
+        while True:
+            if extra_iteration < 1:
+                iline = infile.readline()
+                if not iline:
+                    extra_iteration = 1
+                    iline = ''  # Trigger the final block execution
+            elif extra_iteration == 2:
+                extra_iteration = 0
+            else:
+                break
+
+            line += iline
+            iline = ''
+            stripped_line = line.strip()
+
+            if in_multiline:
+                if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
+                    in_multiline = '' # tell it not to re-check next
                 else:
-                    break
-    
-                line += iline
-                iline = ''
-                stripped_line = line.strip()
-    
-                #print(f"line='{line}'")
-    
-                if in_multiline:
-                    if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
-                        in_multiline = '' # tell it not to re-check next
-                    else:
+                    continue
+
+            if not stripped_line.startswith('#'):
+                kv = stripped_line.split('=', 1)
+                if not in_multiline == '': # not just ended a multiline
+                    if len(kv) > 1 and ( kv[1].strip().startswith('"""') or kv[1].strip().startswith("'''")):
+                        in_multiline = '"""' if kv[1].strip().startswith('"""') else "'''"
+                        extra_iteration = 2 # skip reading another line, and go back to process this one (which might have the """ or ''' ending already on it) 
                         continue
-    
-                if not stripped_line.startswith('#'):
-                    kv = stripped_line.split('=', 1)
-                    if not in_multiline == '': # not just ended a multiline
-                        if len(kv) > 1 and ( kv[1].strip().startswith('"""') or kv[1].strip().startswith("'''")):
-                            in_multiline = '"""' if kv[1].strip().startswith('"""') else "'''"
-                            extra_iteration = 2 # skip reading another line, and go back to process this one (which might have the """ or ''' ending already on it) 
+
+                if len(kv) > 1 or extra_iteration == 1:
+                    if kv[0].strip() == key or extra_iteration == 1:
+
+                        if op != 'w':
+                            ret= shell._extr(kv[1]).replace("\\u001b", "\u001b") if len(kv) > 1 else None # convert "\x1b[" to esc[ below
+                            if ret is not None and ret[0] in '[{(':
+                                import json
+                                ret=json.loads(ret)
+                            return ret
+
+                        elif value == '':
+                            line='' # Delete the variable
                             continue
-    
-                    if len(kv) > 1 or extra_iteration == 1:
-                        if kv[0].strip() == key or extra_iteration == 1:
+                        elif key:
+                            if isinstance(value,(dict, list, tuple)):
+                                import json
+                                line = '{} = {}\n'.format(key, json.dumps(value))
+                            elif value[0] in '+-.0123456789"\'': # Update the variable
+                                line = f'{key} = {value}\n'
+                            else:
+                                #line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
+                                line = '{} = "{}"\n'.format(key, value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t"))
+                            key=None
 
-                            if op != 'w':
-                                return shell._extr(kv[1]).replace("\\u001b", "\u001b") if len(kv) > 1 else None # convert "\x1b[" to esc[ below
+            in_multiline = False
+            if outfile:
+                outfile.write(line)
+            line=''
 
-                            elif value == '':
-                                line='' # Delete the variable
-                                continue
-                            elif key:
-                                if value[0] in '+-.0123456789"\'': # Update the variable
-                                    line = f'{key} = {value}\n'
-                                else:
-                                    #line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
-                                    line = '{} = "{}"\n'.format(key, value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t"))
-                                key=None
-    
-                in_multiline = False
-                #print(f"wrote '{line}'")
-                if outfile:
-                    outfile.write(line)
-                line=''
-    
-        #print("done.")
+
         infile.close()
         if outfile:
             outfile.close()
