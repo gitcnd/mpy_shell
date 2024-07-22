@@ -344,7 +344,7 @@ def now(shell, cmdenv):
     if time.localtime()[0]<2024:
         #cio=shell.cio
         #cio.set_time()  # set the time if possible and not already set
-        shell.cio.set_time()  # set the time if possible and not already set
+        shell.cio.set_time(shell)  # set the time if possible and not already set
     ret="{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6])
     if not cmdenv['sw'].get('op', False): print(ret)
     return ret

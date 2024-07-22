@@ -51,19 +51,23 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
                 print(shell.get_desc(12).format(cmdenv['args'][0], f))  # ls: cannot access 'sdf': No such file or directory
                 continue
             pt = os.stat(f)
-            fsize = shell.human_size(pt[6]) if cmdenv['sw'].get('h') else pt[6]
             mtime = time.localtime(pt[7])
             #mtime_str = f"{mtime.tm_year}-{mtime.tm_mon:02}-{mtime.tm_mday:02} {mtime.tm_hour:02}:{mtime.tm_min:02}.{mtime.tm_sec:02}"
             #mtime[0]-=30
             mtime_str = f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02} {mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}"
+
             tag = "/" if cmdenv['sw'].get('F') and pt[0] & 0x4000 else ""
+            sz=pt[6]
+            if pt[0] & 0x4000 and ( pt[6]<1 or pt[6]>1000000000):
+                sz=4096 # some filesystem report 1,073,572,116 for folders
+            fsize = shell.human_size(sz) if cmdenv['sw'].get('h') else sz
             ret=f"{fsize:,}\t{mtime_str}\t{f}{tag}" if cmdenv['sw'].get('l') else f"{f}{tag}"
             if cmdenv['sw'].get('t'):
                 tsort.append((pt[7], ret))
             elif cmdenv['sw'].get('S'):
-                tsort.append((pt[6], ret))
+                tsort.append((sz, ret))
             elif cmdenv['sw'].get('s'):
-                tsort.append((-pt[6], ret))
+                tsort.append((-sz, ret))
             else:
                 print(ret)
 

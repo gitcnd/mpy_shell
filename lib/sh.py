@@ -99,10 +99,11 @@ class CustomIO:
         #]
     
 
-        if time.time() < 1718841600:
+        #if time.time() < 1718841600:
+        if time.localtime(time.time())[0] < 2024:
             import network
             if network.WLAN(network.STA_IF).isconnected(): # self.get_wifi_ip(): 
-                self.set_time()  # set the time if possible and not already set
+                self.set_time(self.shell)  # set the time if possible and not already set
 
 
     def get_wifi_ip(self):
@@ -635,11 +636,12 @@ class CustomIO:
             pass # time.sleep(0.1)  # Prevent a tight loop
 
 
-    def set_time(self):
+    def set_time(self,shell):
+        self.shell=shell
         import struct
         buf=b'\x1b' + 47 * b'\0'
 
-        if 1: # try:
+        try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(1)
             # Send NTP request
@@ -648,9 +650,9 @@ class CustomIO:
             rtc = machine.RTC()
             rtc.datetime( time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800 - 946728000) ) # NTP timestamp starts from 1900, Unix from 1970
             #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
-        #except Exception as e:
-        #    print(self.shell.get_desc('8').format(e))  # Failed to get NTP time: {}
-        #finally:
+        except Exception as e:
+            print(self.shell.get_desc('8').format(e))  # Failed to get NTP time: {}
+        finally:
             sock.close()
         print("Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
         self.add_hist("#boot")
@@ -720,6 +722,19 @@ class sh:
             return value_str.split('#', 1)[0].strip()
 
 
+    def _strip_cmt(self, line):
+        quote_char = None
+        for i, char in enumerate(line):
+            if char in ('"', "'"):
+                if quote_char is None:
+                    quote_char = char
+                elif quote_char == char and (i == 0 or line[i-1] != '\\'):
+                    quote_char = None
+            elif char == '#' and quote_char is None:
+                return line[:i].strip()
+        return line.strip()
+
+
     def _rw_toml(shell, op, key, value=None):
         tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
         old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
@@ -752,7 +767,7 @@ class sh:
 
             line += iline
             iline = ''
-            stripped_line = line.strip()
+            stripped_line = shell._strip_cmt(line) # remove comments too (not ideal, but good enough 99.9% of the time)
 
             if in_multiline:
                 if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
@@ -763,8 +778,12 @@ class sh:
             if not stripped_line.startswith('#'):
                 kv = stripped_line.split('=', 1)
                 if not in_multiline == '': # not just ended a multiline
-                    if len(kv) > 1 and ( kv[1].strip().startswith('"""') or kv[1].strip().startswith("'''")):
-                        in_multiline = '"""' if kv[1].strip().startswith('"""') else "'''"
+                    if len(kv) > 1 and kv[1].lstrip()[0] in {'"', "'", '(', '{', '['}:
+                        s=kv[1].lstrip()[0]
+                        in_multiline = { '(': ')', '{': '}', '[': ']' }.get(s, s)
+                        if kv[1].lstrip().startswith(f"{s}{s}{s}"):
+                            in_multiline = f"{e}{e}{e}"
+                        
                         extra_iteration = 2 # skip reading another line, and go back to process this one (which might have the """ or ''' ending already on it) 
                         continue
 
