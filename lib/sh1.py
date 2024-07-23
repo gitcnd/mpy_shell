@@ -14,6 +14,19 @@ import os
 
 
 
+def free(shell, cmdenv):
+    try:
+        gc.collect()
+        total_memory = gc.mem_alloc() + gc.mem_free()
+        free_memory = gc.mem_free()
+        used_memory = gc.mem_alloc()
+        print(f"Total Memory: {total_memory} bytes")
+        print(f"Used Memory: {used_memory} bytes")
+        print(f"Free Memory: {free_memory} bytes")
+    except Exception as e:
+        shell._ee(cmdenv, e)  # print(f"free: {e}")
+
+
 def man(shell,cmdenv):
     if len(cmdenv['args']) > 1:
         keyword = cmdenv['args'][1]
@@ -316,80 +329,14 @@ def cat(shell, cmdenv):
                 shell._ee(cmdenv, e)  # print(f"cat: {e}")
 
 
-def _write_toml(shell, key, value=None):
-    import sh0  # load mv command
-    ifn = '/settings.toml'
-    tmp = '/settings_new.toml'
-
-    with open(ifn, 'r') as infile, open(tmp, 'w') as outfile:
-        in_multiline = False
-        extra_iteration = 0
-        line = ''
-
-        while True:
-            #print(f"L extra_iteration={extra_iteration} n_multiline={in_multiline} ")
-            if extra_iteration < 1:
-                iline = infile.readline()
-                if not iline:
-                    extra_iteration = 1
-                    iline = ''  # Trigger the final block execution
-            elif extra_iteration == 2:
-                extra_iteration = 0
-            else:
-                break
-
-            line += iline
-            iline = ''
-            stripped_line = line.strip()
-
-            #print(f"line='{line}'")
-
-            if in_multiline:
-                if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
-                    in_multiline = '' # tell it not to re-check next
-                else:
-                    continue
-
-            if not stripped_line.startswith('#'):
-                kv = stripped_line.split('=', 1)
-                if not in_multiline == '': # not just ended a multiline
-                    if len(kv) > 1 and ( kv[1].strip().startswith('"""') or kv[1].strip().startswith("'''")):
-                        in_multiline = '"""' if kv[1].strip().startswith('"""') else "'''"
-                        extra_iteration = 2 # skip reading another line, and go back to process this one (which might have the """ or ''' ending already on it) 
-                        continue
-
-                if len(kv) > 1 or extra_iteration == 1:
-                    if kv[0].strip() == key or extra_iteration == 1:
-                        if value == '':
-                            line='' # Delete the variable
-                            continue
-                        else:
-                            if value[0] in '+-.0123456789"\'': # Update the variable
-                                line = f'{key} = {value}\n'
-                            else:
-                                line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
-                            key=None
-
-            in_multiline = False
-            #print(f"wrote '{line}'")
-            outfile.write(line)
-            line=''
-
-    #print("done.")
-
-    # Replace old settings with the new settings
-    sh0.mv(shell, {'sw': {}, 'args': ['mv', ifn, '/settings_old.toml']})
-    sh0.mv(shell, {'sw': {}, 'args': ['mv', tmp, ifn]})
-    del sys.modules['sh0']
-
-
 def alias(shell, cmdenv):
     if len(cmdenv['args']) < 2:
         cat(shell, {'sw': {}, 'args': ['alias', '/settings.toml']}) # all aliases are stored in /settings.toml
         #shell._ea(cmdenv)
         return
     key, value = cmdenv['line'].split(' ', 1)[1].strip().split('=', 1) # discard the prefix. Note that the = is not allowed to have spaces.
-    _write_toml(shell,key, value)
+    #_write_toml(shell,key, value)
+    shell._rw_toml('w', key, value)
 
 def export(shell, cmdenv):
     alias(shell, cmdenv)  # same as alias

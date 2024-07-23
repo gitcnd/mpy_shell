@@ -15,19 +15,6 @@ import time
 #import socketpool
 
 
-def free(shell, cmdenv):
-    try:
-        gc.collect()
-        total_memory = gc.mem_alloc() + gc.mem_free()
-        free_memory = gc.mem_free()
-        used_memory = gc.mem_alloc()
-        print(f"Total Memory: {total_memory} bytes")
-        print(f"Used Memory: {used_memory} bytes")
-        print(f"Free Memory: {free_memory} bytes")
-    except Exception as e:
-        shell._ee(cmdenv, e)  # print(f"free: {e}")
-
-
 def wc(shell, cmdenv):
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv)  # print("wc: missing file operand")

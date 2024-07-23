@@ -30,8 +30,6 @@ __version__ = '1.0.20240720'  # Major.Minor.Patch
 #  . exec
 #  from sh import run_blah
 #  .bashrc
-#   telnet authentication
-#   remove sh1._write_toml => shell._rw_toml
 # handle ^C in telnet
 # add -S to ls
 
@@ -694,6 +692,7 @@ class sh:
     def __init__(self,cio=None):
         self.settings_file = "/settings.toml"
         self.cio=cio
+        self._cache = {}
         #self.get_desc=cio.get_desc
         #self.subst_env=cio.subst_env
         pass # self.history_file = "/history.txt"
@@ -735,7 +734,7 @@ class sh:
         return line.strip()
 
 
-    def _rw_toml(shell, op, key, value=None):
+    def _rw_toml(shell, op, key, value=None, default=None, subst=False):
         tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
         old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
 
@@ -791,8 +790,14 @@ class sh:
                     if kv[0].strip() == key or extra_iteration == 1:
 
                         if op != 'w':
-                            ret= shell._extr(kv[1]).replace("\\u001b", "\u001b") if len(kv) > 1 else None # convert "\x1b[" to esc[ below
-                            if ret is not None and ret[0] in '[{(':
+                            if not len(kv) > 1:
+                                return None
+                            #ret= shell._extr(kv[1]).replace("\\u001b", "\u001b") if len(kv) > 1 else None # convert "\x1b[" to esc[ below
+                            ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(shell._extr(kv[1]).split("\\x"))) # 
+                            if subst:
+                                ret=shell.subst_env(ret, dflt=None, cache=True)
+                            #if ret is not None and ret[0] in '[{(':
+                            if ret[0] in '[{(':
                                 import json
                                 ret=json.loads(ret)
                             return ret
@@ -827,11 +832,17 @@ class sh:
             del sys.modules['sh0']
     
 
-    def os_getenv(shell, key, dflt=None):
-        return shell._rw_toml('r',key) or dflt
+    def os_getenv(shell, key, dflt=None, cache=False, subst=False):
+        if cache and key in shell._cache:
+            return shell._cache[key]
+        ret=shell._rw_toml('r', key, subst=subst) or dflt
+        if cache:
+           shell._cache[key] = ret
+        return ret
+        #return shell._rw_toml('r',key) or dflt
 
 
-    def subst_env(self, value):
+    def subst_env(self, value, dflt=None, cache=False):
         result = ''
         i = 0
         while i < len(value):
@@ -840,7 +851,7 @@ class sh:
                 i += 2
             elif value[i] == '$':
                 i += 1
-                i, expanded = self.exp_env(i,value)
+                i, expanded = self.exp_env(i,value,cache)
                 result += expanded
             else:
                 result += value[i]
@@ -878,22 +889,22 @@ class sh:
             return False
 
 
-    def exp_env(self,start,value):
+    def exp_env(self, start, value, cache=False):
         if value[start] == '{':
             end = value.find('}', start)
             var_name = value[start + 1:end]
             if var_name.startswith('!'):
-                var_name = self.os_getenv(var_name[1:], f'${{{var_name}}}')
-                var_value = self.os_getenv(var_name, f'${{{var_name}}}')
+                var_name = self.os_getenv(var_name[1:], f'${{{var_name}}}', cache=cache)
+                var_value = self.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
             else:
-                var_value = self.os_getenv(var_name, f'${{{var_name}}}')
+                var_value = self.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
             return end + 1, var_value
         else:
             end = start
             while end < len(value) and (value[end].isalpha() or value[end].isdigit() or value[end] == '_'):
                 end += 1
             var_name = value[start:end]
-            var_value = self.os_getenv(var_name, f'${var_name}')
+            var_value = self.os_getenv(var_name, f'${var_name}', cache=cache)
             return end, var_value
 
 
@@ -1188,7 +1199,7 @@ def main():
         print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # Request terminal size.
         while run>0:
             run=1
-            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} mpy\$ ").format(os.getcwd())) # the stuff in the middle is the prompt
+            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} mpy\$ ",cache=True).format(os.getcwd())) # the stuff in the middle is the prompt
             if user_input:
                 #print("#############")
                 #print(''.join(f' 0x{ord(c):02X} ' if ord(c) < 0x20 else c for c in user_input))
