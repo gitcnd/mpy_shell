@@ -37,6 +37,11 @@ version	1.0.20240626
 35	Listening for espnow packets{}. Hit ^C to stop.
 36	 on channel {chan}
 37	usage: curl [-I] [-i] [--data=data] [--output=outfile] <url>
+38	re-run$GRN import sh$NORM to re-start the updated shell
+39	Error fetching {} from {}:{}: {}")
+40	Wrote {}b to {} from {}
+41	Uptime: {} hours, {} minutes, {} seconds
+42	{}-{:02}-{:02} {:02}:{:02}.{:02}
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory

@@ -15,7 +15,8 @@ import time
 #import socketpool
 
 
-def wc(shell, cmdenv):
+
+def wc(shell, cmdenv): # 249 bytes
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv)  # print("wc: missing file operand")
     else:
@@ -137,8 +138,21 @@ def ifconfig(shell, cmdenv):
 
 
 def date(shell, cmdenv):
-    date_time = time.localtime()
-    print(f"{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}")
+    now(shell, cmdenv)
+    #date_time = time.localtime()
+    #print( shell.get_desc(42).format( date_time.tm_year,date_time.tm_mon,date_time.tm_mday,date_time.tm_hour,date_time.tm_min,date_time.tm_sec ) ) # f"{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}")
+    #print( shell.get_desc(42).format(*time.localtime()[:6]))
+
+
+def now(shell, cmdenv):
+    if time.localtime()[0]<2024:
+        #cio=shell.cio
+        #cio.set_time()  # set the time if possible and not already set
+        shell.cio.set_time(shell)  # set the time if possible and not already set
+    #ret="{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6])
+    ret=shell.get_desc(42).format(*time.localtime()[:6])
+    if not cmdenv['sw'].get('op', False): print(ret)
+    return ret
 
 
 def sleep(shell, cmdenv): # not working
@@ -167,7 +181,7 @@ def _sleep(shell, cmdenv): # not working
 
 def uptime(shell, cmdenv):
     t = time.monotonic()
-    print(f"Uptime: {int(t // 3600)} hours, {int((t % 3600) // 60)} minutes, {int(t % 60)} seconds")
+    print(shell.get_desc(41).format( int(t // 3600), int((t % 3600) // 60), int(t % 60)  )) # f"Uptime: {int(t // 3600)} hours, {int((t % 3600) // 60)} minutes, {int(t % 60)} seconds") # 39 bytes
 
 
 def _parse_url(url):
@@ -326,24 +340,14 @@ def curl(shell, cmdenv):
         sock.close()
         wb=shell.fprint(None,fn=ofn) # close output file
         if ofn is not None:
-            print(f"Write {wb}b to {ofn}")
+            print(shell.get_desc(40).format(wb,ofn,url)) # "Wrote {wb}b to {ofn} from {url}")
 
     except Exception as e:
-        print(f"Error fetching {url} from {host}:{port}: {e}")
+        print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
 
 
 def wget(shell, cmdenv):
     return curl(shell, cmdenv)
-
-
-def now(shell, cmdenv):
-    if time.localtime()[0]<2024:
-        #cio=shell.cio
-        #cio.set_time()  # set the time if possible and not already set
-        shell.cio.set_time(shell)  # set the time if possible and not already set
-    ret="{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6])
-    if not cmdenv['sw'].get('op', False): print(ret)
-    return ret
 
 
 
@@ -406,11 +410,14 @@ def _scrsize(shell, cmdenv): # 70 bytes
 
 def shupdate(shell, cmdenv):
     import os
+    import sys
     mpy = 1 if 'sh.mpy' in os.listdir('/lib') else 0
     for fn in shell.get_desc(33+mpy).split(' '): # /lib/sh.py /lib/sh0.py /lib/sh1.py /lib/sh2.py - see also (34)
         cmdenv['args']=['curl',shell.get_desc(31+mpy)+fn] # https://raw.githubusercontent.com/gitcnd/mpy_shell/main  - see also (32)
         cmdenv['sw']['output']=fn
         curl(shell, cmdenv)
+    print(shell.get_desc(38)) # re-run import shell to re-start the updated shell
+    del sys.modules["sh"] # so we can re-run us later
 
 
 

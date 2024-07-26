@@ -328,3 +328,4 @@ def getpin(shell, cmdenv):
         else:
             led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
         print("pin {} is {}".format(cmdenv['sw']['pin'], led.value()))
+

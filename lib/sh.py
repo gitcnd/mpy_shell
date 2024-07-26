@@ -647,6 +647,7 @@ class CustomIO:
             buf, _ = sock.recvfrom(48)
             rtc = machine.RTC()
             rtc.datetime( time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800 - 946728000) ) # NTP timestamp starts from 1900, Unix from 1970
+            #print(buf[40:44]) # debug time weirdness
             #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
         except Exception as e:
             print(self.shell.get_desc('8').format(e))  # Failed to get NTP time: {}
