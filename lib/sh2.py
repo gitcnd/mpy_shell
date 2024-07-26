@@ -54,42 +54,42 @@ def history(shell, cmdenv):
         print(f"Error reading history: {e}")
 
 
-"""
-
-def _show_mdns():
-    import wifi
-    import mdns
-
-    # Create an mDNS server instance
-    mdns_server = mdns.Server(wifi.radio)
-    
-    # Retrieve the hostname
-    mdns_name = mdns_server.hostname
-
-    # Print the mDNS hostname
-    print(f"mDNS Hostname: {mdns_name}")
-
-    # Find services advertised by this hostname
-    # services = mdns_server.find(service_type="_services._dns-sd._udp", protocol="_udp", timeout=1.0)
-    services = mdns_server.find(service_type="_http", protocol="_tcp", timeout=1.0)
-    #services = mdns_server.find(service_type="", protocol="", timeout=1.0) # rats. nothing.
-
-
-    # Print the found services
-    if services:
-        for service in services:
-            if service.hostname == mdns_name:
-                print(f"### US ###")
-            print(f"Service: {service.instance_name}")
-            print(f"  Hostname: {service.hostname}")
-            print(f"  Address: {service.ipv4_address}")
-            print(f"  Port: {service.port}")
-            print(f"  Type: {service.service_type}")
-            print(f"  Protocol: {service.protocol}")
-    else:
-        print("No mDNS services found")
-
-"""
+#"""
+#
+#def _show_mdns():
+#    import wifi
+#    import mdns
+#
+#    # Create an mDNS server instance
+#    mdns_server = mdns.Server(wifi.radio)
+#    
+#    # Retrieve the hostname
+#    mdns_name = mdns_server.hostname
+#
+#    # Print the mDNS hostname
+#    print(f"mDNS Hostname: {mdns_name}")
+#
+#    # Find services advertised by this hostname
+#    # services = mdns_server.find(service_type="_services._dns-sd._udp", protocol="_udp", timeout=1.0)
+#    services = mdns_server.find(service_type="_http", protocol="_tcp", timeout=1.0)
+#    #services = mdns_server.find(service_type="", protocol="", timeout=1.0) # rats. nothing.
+#
+#
+#    # Print the found services
+#    if services:
+#        for service in services:
+#            if service.hostname == mdns_name:
+#                print(f"### US ###")
+#            print(f"Service: {service.instance_name}")
+#            print(f"  Hostname: {service.hostname}")
+#            print(f"  Address: {service.ipv4_address}")
+#            print(f"  Port: {service.port}")
+#            print(f"  Type: {service.service_type}")
+#            print(f"  Protocol: {service.protocol}")
+#    else:
+#        print("No mDNS services found")
+#
+#"""
 
 def ifconfig(shell, cmdenv):
     import network
@@ -194,8 +194,9 @@ def _parse_url(url):
 def curl(shell, cmdenv):
     import ssl
     import socket
+    gc.collect()
     if len(cmdenv['args']) < 2:
-        print("usage: curl [-I] [-i] [--data=data] <url>")
+        print(shell.get_desc(37)) # "usage: curl [-I] [-i] [--data=data] [--output=outfile] <url>"
         return
 
     import ssl
@@ -204,6 +205,8 @@ def curl(shell, cmdenv):
     headers = {"Host": "", "Connection": "close"}
     data = None
     include_headers = cmdenv['sw'].get('i', False)
+
+    ofn=cmdenv['sw'].get('output') if 'output' in cmdenv['sw'] else None
 
     # Parse command line arguments
     if cmdenv['sw'].get('I'):
@@ -221,6 +224,7 @@ def curl(shell, cmdenv):
 
     try:
         # Create a socket and connect
+        #print(f"looking up host {host} port {port}")
         addr_info = socket.getaddrinfo(host, port)[0]
         addr = addr_info[4]
         sock = socket.socket(addr_info[0], addr_info[1], addr_info[2])
@@ -230,20 +234,20 @@ def curl(shell, cmdenv):
         if protocol == 'https':
             sock = ssl.wrap_socket(sock, server_hostname=host)
 
-        """ # Create a socket pool
-        pool = socketpool.SocketPool(wifi.radio)
-
-        # Create a socket and connect
-        addr_info = pool.getaddrinfo(host, port)[0]
-        addr = addr_info[4]
-        sock = pool.socket(addr_info[0], addr_info[1], addr_info[2])
-        sock.connect(addr)
-
-        # Wrap socket with SSL if using HTTPS
-        if protocol == 'https':
-            context = ssl.create_default_context()
-            sock = context.wrap_socket(sock, server_hostname=host)
-        """
+#        """ # Create a socket pool
+#        pool = socketpool.SocketPool(wifi.radio)
+#
+#        # Create a socket and connect
+#        addr_info = pool.getaddrinfo(host, port)[0]
+#        addr = addr_info[4]
+#        sock = pool.socket(addr_info[0], addr_info[1], addr_info[2])
+#        sock.connect(addr)
+#
+#        # Wrap socket with SSL if using HTTPS
+#        if protocol == 'https':
+#            context = ssl.create_default_context()
+#            sock = context.wrap_socket(sock, server_hostname=host)
+#        """
 
         # Construct the HTTP request
         request_lines = [f"{method} {path} HTTP/1.1"]
@@ -267,14 +271,14 @@ def curl(shell, cmdenv):
                 break
 
         headers, body= response.split(b'\r\n\r\n', 1)
-        headers = headers.decode('utf-8')
+        headers = headers
         if include_headers:
-            print(headers)
-            print()
+            shell.fprint(headers,fn=ofn)
+            shell.fprint(b'',fn=ofn)
 
 
         # Check for chunked transfer encoding
-        if "Transfer-Encoding: chunked" in headers:
+        if b"Transfer-Encoding: chunked" in headers:
             # Process the initial part of the body
             while body:
                 length_str, body = body.split(b'\r\n', 1)
@@ -291,8 +295,8 @@ def curl(shell, cmdenv):
                     body += chunk
 
                 # Print the chunk data
-                chunk_data = body[:chunk_length].decode('utf-8')
-                print(chunk_data, end='')
+                chunk_data = body[:chunk_length] # .decode('utf-8')
+                shell.fprint(chunk_data, fn=ofn, end=b'')
 
                 # Move to the next chunk, skipping the trailing \r\n
                 body = body[chunk_length + 2:]
@@ -306,21 +310,26 @@ def curl(shell, cmdenv):
 
         else:
             # Print the initial part of the body
-            print(body.decode('utf-8'), end='')
+            #shell.fprint(body.decode('utf-8'), fn=ofn, end=b'')
+            shell.fprint(body, fn=ofn, end=b'')
 
             # Read and print the remaining non-chunked data
             while True:
                 chunk = sock.read(1024)
                 if not chunk:
                     break
-                print(chunk.decode('utf-8'), end='')
+                #shell.fprint(chunk.decode('utf-8'), fn=ofn, end='')
+                shell.fprint(chunk, fn=ofn, end=b'')
 
 
         # Close the socket
         sock.close()
+        wb=shell.fprint(None,fn=ofn) # close output file
+        if ofn is not None:
+            print(f"Write {wb}b to {ofn}")
 
     except Exception as e:
-        print(f"Error fetching {url}: {e}")
+        print(f"Error fetching {url} from {host}:{port}: {e}")
 
 
 def wget(shell, cmdenv):
@@ -361,8 +370,7 @@ def espnow(shell, cmdenv): # usage: espnowreceiver --op=send --channel=9 --msg="
         e.send(peer, msg)
         print(f"Sent: {msg}")
     else:
-        cm=f" on channel {chan}" if chan >= 0 else ""
-        print(f"Listening for espnow packets{cm}. Hit ^C to stop:")
+        print(shell.get_desc(35).format( shell.get_desc(36).format(chan) if chan >= 0 else "") ) # f"Listening for espnow packets{cm}. Hit ^C to stop:")  # cm=f" on channel {chan}" if chan >= 0 else ""
 
         while True:
             host, msg = e.recv()
@@ -395,6 +403,14 @@ def _termtype(shell, cmdenv): # +50, -58 bytes
 def _scrsize(shell, cmdenv): # 70 bytes
     print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # ANSI escape code to save cursor position, move to lower-right, get cursor position, then restore cursor position: responds with \x1b[130;270R
     #ng: print("\033[18t", end='')  # get screen size: does nothing
+
+def shupdate(shell, cmdenv):
+    import os
+    mpy = 1 if 'sh.mpy' in os.listdir('/lib') else 0
+    for fn in shell.get_desc(33+mpy).split(' '): # /lib/sh.py /lib/sh0.py /lib/sh1.py /lib/sh2.py - see also (34)
+        cmdenv['args']=['curl',shell.get_desc(31+mpy)+fn] # https://raw.githubusercontent.com/gitcnd/mpy_shell/main  - see also (32)
+        cmdenv['sw']['output']=fn
+        curl(shell, cmdenv)
 
 
 

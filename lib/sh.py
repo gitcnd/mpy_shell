@@ -104,13 +104,13 @@ class CustomIO:
                 self.set_time(self.shell)  # set the time if possible and not already set
 
 
-    def get_wifi_ip(self):
-        try:
-            wlan = network.WLAN(network.STA_IF)
-            wlan.active(True)
-            return wlan.ifconfig()[0]
-        except:
-            return None
+    #def get_wifi_ip(self):
+    #    try:
+    #        wlan = network.WLAN(network.STA_IF)
+    #        wlan.active(True)
+    #        return wlan.ifconfig()[0]
+    #    except:
+    #        return None
 
     # Initialize buffers for sockets
     def initialize_buffers(self):
@@ -697,7 +697,6 @@ class sh:
         #self.subst_env=cio.subst_env
         pass # self.history_file = "/history.txt"
 
-
     def _extr(shell,value_str):
         value_str = value_str.strip()
     
@@ -721,7 +720,7 @@ class sh:
             return value_str.split('#', 1)[0].strip()
 
 
-    def _strip_cmt(self, line):
+    def _strip_cmt(shell, line):
         quote_char = None
         for i, char in enumerate(line):
             if char in ('"', "'"):
@@ -832,6 +831,24 @@ class sh:
             del sys.modules['sh0']
     
 
+    # Print output to the screen, or a file
+    def fprint(shell,line=None,fn=None,end=b'\n'):
+        if line is None:
+            shell.pfn.close()
+            del shell.pfn
+            ret=shell._bw
+            del shell._bw
+            return ret
+        elif fn is None:
+            print(line.decode('utf-8'),end=end.decode('utf-8') )
+        else:
+            if not hasattr(shell, 'pfn'):
+                shell.pfn=open(fn, 'wb')
+                shell._bw=0
+            shell.pfn.write(line+end)
+            shell._bw += len(line)+len(end)
+
+
     def os_getenv(shell, key, dflt=None, cache=False, subst=False):
         if cache and key in shell._cache:
             return shell._cache[key]
@@ -842,7 +859,7 @@ class sh:
         #return shell._rw_toml('r',key) or dflt
 
 
-    def subst_env(self, value, dflt=None, cache=False):
+    def subst_env(shell, value, dflt=None, cache=False):
         result = ''
         i = 0
         while i < len(value):
@@ -851,7 +868,7 @@ class sh:
                 i += 2
             elif value[i] == '$':
                 i += 1
-                i, expanded = self.exp_env(i,value,cache)
+                i, expanded = shell.exp_env(i,value,cache)
                 result += expanded
             else:
                 result += value[i]
@@ -860,13 +877,13 @@ class sh:
 
 
     # For reading help and error messages etc out of a text file
-    def get_desc(self,keyword):
+    def get_desc(shell,keyword):
         with open(__file__.rsplit('.', 1)[0] + '.txt', 'r') as file:   # /lib/sh.txt
             for line in file:
                 try:
                     key, description = line.split('\t', 1)
                     if key == str(keyword):
-                        return self.subst_env(description.strip()).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
+                        return shell.subst_env(description.strip()).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
                 except: 
                     return 'corrupt help file'
 
@@ -881,7 +898,7 @@ class sh:
         print(shell.get_desc('10').format(cmdenv['args'][0],e)) # {}: {}
 
 
-    def file_exists(self, filepath):
+    def file_exists(shell, filepath):
         try:
             os.stat(filepath)
             return True
@@ -889,26 +906,26 @@ class sh:
             return False
 
 
-    def exp_env(self, start, value, cache=False):
+    def exp_env(shell, start, value, cache=False):
         if value[start] == '{':
             end = value.find('}', start)
             var_name = value[start + 1:end]
             if var_name.startswith('!'):
-                var_name = self.os_getenv(var_name[1:], f'${{{var_name}}}', cache=cache)
-                var_value = self.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
+                var_name = shell.os_getenv(var_name[1:], f'${{{var_name}}}', cache=cache)
+                var_value = shell.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
             else:
-                var_value = self.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
+                var_value = shell.os_getenv(var_name, f'${{{var_name}}}', cache=cache)
             return end + 1, var_value
         else:
             end = start
             while end < len(value) and (value[end].isalpha() or value[end].isdigit() or value[end] == '_'):
                 end += 1
             var_name = value[start:end]
-            var_value = self.os_getenv(var_name, f'${var_name}', cache=cache)
+            var_value = shell.os_getenv(var_name, f'${var_name}', cache=cache)
             return end, var_value
 
 
-    def parse_command_line(self, command_line):
+    def parse_command_line(shell, command_line):
         def split_command_o(command_line):
             # """Split command line into parts respecting quotes and escape sequences."""
             parts = []
@@ -1019,7 +1036,7 @@ class sh:
             # """Substitute commands within backticks and $(...) with their output."""
             def substitute(match):
                 command = match.group(1)
-                return self.execute_command(command)  # Placeholder for actual command execution
+                return shell.execute_command(command)  # Placeholder for actual command execution
 
             while '`' in value or '$(' in value:
                 if '`' in value:
@@ -1031,7 +1048,7 @@ class sh:
                         break
                     command = value[start + 1:end]
                     #print(f"` command={command}")
-                    value = value[:start] + self.execute_command(command) + value[end + 1:]
+                    value = value[:start] + shell.execute_command(command) + value[end + 1:]
                     #print(f"` new value={value}")
                 if '$(' in value:
                     start = value.find('$(')
@@ -1048,7 +1065,7 @@ class sh:
                     command = value[start + 2:end - 1]
                     command = value[start + 2:end]
                     #print(f"$( command={command}")
-                    value = value[:start] + self.execute_command(command) + value[end:]
+                    value = value[:start] + shell.execute_command(command) + value[end:]
                     #print(f"$( new value={value}")
             return value
 
@@ -1080,7 +1097,7 @@ class sh:
                     if '=' in part:
                         key, value = part[2:].split('=', 1)
                         if not (value.startswith("'") and value.endswith("'")):
-                            value = self.subst_env(substitute_backticks(value))
+                            value = shell.subst_env(substitute_backticks(value))
                         current_cmd['sw'][key] = value
                         current_cmd['line'] += f" --{key}={value}"
                     else:
@@ -1098,7 +1115,7 @@ class sh:
                     current_cmd['line'] += ' ' + part
                 else:
                     if not (part.startswith("'") and part.endswith("'")):
-                        part = self.subst_env(substitute_backticks(part))
+                        part = shell.subst_env(substitute_backticks(part))
                     current_cmd['args'].append(part)
                     current_cmd['line'] += (' ' if current_cmd['line'] else '') + part
 
@@ -1112,7 +1129,7 @@ class sh:
         return cmds
 
 
-    def human_size(self,size):
+    def human_size(shell,size):
         # Convert bytes to human-readable format
         for unit in ['B', 'K', 'M', 'G', 'T']:
             if size < 1024:
@@ -1121,15 +1138,15 @@ class sh:
         return f"{round(size):,}P"  # Handle very large sizes as petabytes
 
     
-    def execute_command(self,command):
+    def execute_command(shell,command):
         # """Execute a command and return its output. Placeholder for actual execution logic."""
         for _ in range(2): # optional alias expander
-            parts = self.parse_command_line(command)
+            parts = shell.parse_command_line(command)
             cmdenv = parts[0]  # Assuming simple commands for mock execution
             cmd=cmdenv['args'][0]
             #print("executing: {}".format(cmdenv['line'])) #DBG
 
-            alias = self.os_getenv(cmd)
+            alias = shell.os_getenv(cmd)
             if alias is not None:
                 command=alias + command[command.find(' '):] if ' ' in command else alias
             else:
@@ -1156,7 +1173,7 @@ class sh:
             command_function = getattr(module, cmd,None)
             if command_function:
                 #print(f"running {mod}.{cmd}")
-                ret=command_function(self,cmdenv)  # Run the command
+                ret=command_function(shell,cmdenv)  # Run the command
                 del sys.modules[mod]
                 gc.collect()
                 return 1
@@ -1165,7 +1182,7 @@ class sh:
             del sys.modules[mod]
             gc.collect()
 
-        print(self.get_desc('0').format(cmd)) # {} command not found
+        print(shell.get_desc('0').format(cmd)) # {} command not found
         return 1 # keep running
     
 

@@ -30,6 +30,13 @@ version	1.0.20240626
 28	usage: pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
 29	usage: setpin --pin=<pin_number> --value=<0 or 1>
 30	usage: getpin --pin=<pin_number> [--pullup=1]
+31	https://raw.githubusercontent.com/gitcnd/mpy_shell/main
+32	https://raw.githubusercontent.com/gitcnd/mpy_shell/main
+33	/lib/sh.py /lib/sh0.py /lib/sh1.py /lib/sh2.py /lib/sh.txt
+34	/lib/sh.mpy /lib/sh0.mpy /lib/sh1.mpy /lib/sh2.mpy /lib/sh.txt
+35	Listening for espnow packets{}. Hit ^C to stop.
+36	 on channel {chan}
+37	usage: curl [-I] [-i] [--data=data] [--output=outfile] <url>
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -71,7 +78,7 @@ set	Set environment variables
 export	Set environment variables
 printenv	Print all or part of the environment
 diff	Compare files line by line\n$GRN -u $NORM Output in unified format\n$GRN -q $NORM Report only when files differ
-curl	Transfer data from or to a server\n$GRN -i $NORM show headers\n$GRN -I $NORM do a HEAD request\n$GRN --data=myvar=value $NORM send POST data\n$GRN -O $NORM Write output to a file named as the remote file\n$GRN --output=file $NORM Write output to a specified file
+curl	Transfer data from or to a server\n$GRN -i $NORM show headers\n$GRN -I $NORM do a HEAD request\n$GRN --data=myvar=value $NORM send POST data\n$GRN --output=file $NORM Write output to a specified file
 wget	Non-interactive network downloader - see$YEL curl$NORM command
 ping	Send ICMP ECHO_REQUEST to network hosts\n$GRN -c $NORM Stop after sending count ECHO_REQUEST packets
 ifconfig	Print networking information (IP address, Gateway, BSSID, Signal Strength, TX Power, etc)
@@ -146,3 +153,4 @@ gps	Display your latitude and longitude
 radar	Output data from your attached radar device
 telnetd	Listen for terminal input over TCP/IP
 wifi	Control your Wi-Fi settings\n$GRN -c $NORM Connect to a network\n$GRN -d $NORM Disconnect from a network
+shupdate	Overwrite all /lib/sh*.py files with the latest versions from https://github.com/gitcnd/mpy_shell
