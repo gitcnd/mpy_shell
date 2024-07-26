@@ -31,7 +31,7 @@ __version__ = '1.0.20240726'  # Major.Minor.Patch
 #  from sh import run_blah
 #  .bashrc
 # handle ^C in telnet
-# add -S to ls
+# investigate sketchy ntp set_time things
 
 import os
 import sys
@@ -192,7 +192,7 @@ class CustomIO:
                             #else:
                             #   #print(f"no match={match} want={hist_loc} pfx='{pfx}'")
                     except IndexError as e:
-                        print(f"possible history_file error: {e} for line: {line}")
+                        print(self.shell.get_desc(60).format(e,line)) # f"possible history_file error: {e} for line: {line}")
 
                 #if len(matches) > hist_loc:
                 #    return matches[hist_loc]
@@ -219,7 +219,7 @@ class CustomIO:
             self._reading_esc = True
             self._esc_seq = char
         elif char == '\x03':  # ctrl-C ^C
-            print("KeyboardInterrupt:")
+            print(self.shell.get_desc(61)) # "KeyboardInterrupt:")
             raise KeyboardInterrupt
         elif char in ['\x7f', '\b']:  # Backspace
             if self._cursor_pos > 0:
@@ -228,7 +228,6 @@ class CustomIO:
                 print('\b \b' + self._line[self._cursor_pos:] + ' ' + '\b' * (len(self._line) - self._cursor_pos + 1), end='')
         elif char in ['\r', '\n']:  # Enter
             ret_line = self._line
-            err='sh: !{}: event not found'
             if ret_line.startswith("!"): # put history into buffer
                 if ret_line[1:].isdigit():
                     nth = int(ret_line[1:])
@@ -236,7 +235,7 @@ class CustomIO:
                     if history_line:
                         self.ins_command(history_line)
                     else:
-                        print(err.format(nth)) # sh: !123: event not found
+                        print(self.shell.get_desc(66).format(nth)) # sh: !123: event not found
                         return '' # re-show the prompt
                 else:
                     pfx = ret_line[1:]
@@ -244,7 +243,7 @@ class CustomIO:
                     if history_line:
                         self.ins_command(history_line)
                     else:
-                        print(err.format(pfx)) # sh: !{pfx}: event not found
+                        print(self.shell.get_desc(66).format(pfx)) # sh: !{pfx}: event not found
                         return '' # re-show the prompt
             else:
                 print('\r')
@@ -273,7 +272,7 @@ class CustomIO:
                             self.ins_command(self._line[:self._cursor_pos] + entry[len(word):] + self._line[self._cursor_pos:])
                             break
                 except OSError as e:
-                    print(f"Error listing directory: {e}")
+                    print(self.shell.get_desc(65).format(e)) # f"Error listing directory: {e}")
 
             else:
                 from sh1 import _iter_cmds
@@ -357,7 +356,7 @@ class CustomIO:
             try:
                 self._TERM_HEIGHT, self._TERM_WIDTH = map(int, seq[:-1].split(';'))
             except Exception as e:
-                print("term-size set command {} error: {}; seq={}",format(seq[:-1],e,  binascii.hexlify(seq)  ))
+                print(self.shell.get_desc(64).format(seq[:-1],e,  binascii.hexlify(seq)  )) # "term-size set command {} error: {}; seq={}"
             return self._line, 'sz', self._cursor_pos
         elif seq.startswith('>') and seq.endswith('c'):  # Extended device Attributes
             self._TERM_TYPE_EX = seq[1:-1]
@@ -388,14 +387,17 @@ class CustomIO:
             line = self.input_content
             self.input_content = ""
             return line
-        raise EOFError("No more input")
+        raise EOFError(self.shell.get_desc(63)) # "No more input"
 
     def _del_old_socks(self,sockdel):
         for i in sockdel:
             client_socket=self.sockets[i]
             client_socket['sock'].close()
-            print(f"Closed telnet client {i} IP {client_socket['addr']}")
+            print(self.shell.get_desc(62).format(i,client_socket['addr'])) # f"Closed telnet client {i} IP {client_socket['addr']}")
             del self.sockets[i]
+
+    def setshell(self, shell):
+        self.shell=shell
 
     def telnetd(self, shell, port=None): # see sh2.py which calls this via:    shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
         import network
@@ -412,8 +414,8 @@ class CustomIO:
         self.server_socket.bind((ip_address, port))
         self.server_socket.listen(1)
 
-        self.tspassword='pass'
-        print("Telnet server started on IP", ip_address, "port", port)
+        self.tspassword=self.shell._rw_toml('r', 'PASSWORD') # ( defaults to "$5$bl0zjwUtt8T2WLJBH5Vadl/Ix6X+cFdJr5td4a0B+n0=$1txXuyLLzAvAMM/jYSlpRScy3nSwvTQ05Mv7At5LiSs=$", which is 'pass' )
+        print(self.shell.get_desc(53).format(ip_address,port)) # "Telnet server started on IP", ip_address, "port", port)
 
 
 
@@ -444,11 +446,13 @@ class CustomIO:
                                 client_socket['a'] += data
                                 if ord(client_socket['a'][-1]) == 0x0d or len(client_socket['a'])>63: # caution; neither client_socket['a'][-1]=='\n' nor client_socket['a'].endswith('\n') work here!
                                     client_socket['a'] = client_socket['a'][:-1] # .rstrip('\n') does not work here
-                                    if client_socket['a'] == self.tspassword:
+                                    import sh1
+                                    #if client_socket['a'] == self.tspassword:
+                                    if sh1._chkpass(self.shell,'chk',client_socket['a'],self.tspassword):
                                         import network
                                         del client_socket['a'] # this lets them in
                                         #client_socket['sock'].send()
-                                        client_socket['buf']="\r\nWelcome to {} - {} Micropython {} on {}\r\n".format(network.WLAN(network.STA_IF).config('hostname'),os.uname().sysname,os.uname().version,os.uname().machine).encode('utf-8')
+                                        client_socket['buf']=self.shell.get_desc(59).format(network.WLAN(network.STA_IF).config('hostname'),os.uname().sysname,os.uname().version,os.uname().machine).encode('utf-8')  # \r\nWelcome to {} - {} Micropython {} on {}\r\n"
                                         print("",end='')
                                     else:
                                         try:
@@ -456,6 +460,7 @@ class CustomIO:
                                         except:
                                             pass
                                         sockdel.insert(0,i) # kick off the attempt
+                                    del sys.modules['sh1'] 
                             else:
                                 chars = chars + data if chars else data
                         else:
@@ -466,7 +471,7 @@ class CustomIO:
                     #    continue
     
                 for s in client_socket['e']:
-                    print("Handling exceptional condition for", client_socket['addr'])
+                    print(self.shell.get_desc(58).format(client_socket['addr'])) # "Handling exceptional condition for", client_socket['addr'])
                     if i not in sockdel:
                         sockdel.insert(0,i) # remember to close it shortly (backwards from end, so index numbers don't change in the middle)
     
@@ -476,7 +481,7 @@ class CustomIO:
             if self.server_socket:# Accept new connections
                 readable, _, exceptional = select.select([self.server_socket], [], [self.server_socket], 0)
                 for s in exceptional:
-                    print("server_socket err?",s)
+                    print(self.shell.get_desc(57).format(s)) # "server_socket err?",s)
                 for s in readable:
                     # Handle new connection
                     client_sock, client_addr = self.server_socket.accept() # client_socket['sock'] is the socket, client_socket['addr'] is the address
@@ -490,7 +495,7 @@ class CustomIO:
                         'a': "" # unauthenticated
                     })
         
-                    print("Connection from", client_addr)
+                    print(self.shell.get_desc(56).format(client_addr)) # "New telnet connection from", client_addr)
                     client_sock.setblocking(False)
         
                     # Tell the new connection to set up their terminal for us
@@ -506,7 +511,7 @@ class CustomIO:
                                 #if ignore:
                                 #    print("got: ", binascii.hexlify(ignore))
                             else:
-                                print(f"No response from client {client_addr} within timeout. Disconnected")
+                                print(self.shell.get_desc(55).format(client_addr)) # f"No response from client {client_addr} within timeout. Disconnected")
                                 client_sock.close()
                                 del self.sockets[-1]
 
@@ -521,7 +526,7 @@ class CustomIO:
                                 self.add_hist(user_input)
                             return user_input
                         elif key != 'sz': 
-                            oops=f" (mode {key} not implimented)";
+                            oops=self.shell.get_desc(54).format(key) # f" (mode {key} not implimented)";
                             print(oops +  '\b' * (len(oops)), end='')
 
             elif time.ticks_ms()-self._lastread > 100:
@@ -552,7 +557,7 @@ class CustomIO:
                     file.write(chars)
                     file.flush()
                 except Exception as e:
-                    print(self.shell.get_desc('3').format(e)) #  File write exception: {}
+                    print(self.shell.get_desc(3).format(e)) #  File write exception: {}
 
         # Flag to check if any buffer has remaining data
         any_buffer_non_empty = False
@@ -570,7 +575,7 @@ class CustomIO:
                         bsent=client_socket['sock'].send(client_socket['buf'])
                         client_socket['buf'] = client_socket['buf'][bsent:]  # Fix partial sends by updating the buffer
                     except Exception as e:
-                        print(self.shell.get_desc('4').format(e)) # Socket send exception: {}
+                        print(self.shell.get_desc(4).format(e)) # Socket send exception: {}
                         sockdel.insert(0,i) # remember to close it shortly
 
             if client_socket['buf']: # Update the flag if there is still data in the buffer
@@ -591,7 +596,7 @@ class CustomIO:
             self.outfiles.append(file)
             #print("Output file opened successfully.")
         except Exception as e:
-            print(self.shell.get_desc('5').format(e)) # Output file setup failed: {}
+            print(self.shell.get_desc(5).format(e)) # Output file setup failed: {}
 
     # Method to open an input file
     def open_input_file(self, filepath):
@@ -600,7 +605,7 @@ class CustomIO:
             self.infiles.append(file)
             #print("Input file opened successfully.")
         except Exception as e:
-            print(self.shell.get_desc('6').format(e)) # Input file setup failed: {}
+            print(self.shell.get_desc(6).format(e)) # Input file setup failed: {}
 
     # Method to open a socket
 
@@ -612,7 +617,7 @@ class CustomIO:
             self.sockets.append(sock)
             self.initialize_buffers()
         except Exception as e:
-            print(self.shell.get_desc('7').format(e))  # Socket setup failed: {}
+            print(self.shell.get_desc(7).format(e))  # Socket setup failed: {}
 
 #    """ # Method to open a listening socket on port 23 for Telnet
 #    def open_listening_socket(self, port=23):
@@ -650,11 +655,13 @@ class CustomIO:
             #print(buf[40:44]) # debug time weirdness
             #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
         except Exception as e:
-            print(self.shell.get_desc('8').format(e))  # Failed to get NTP time: {}
+            print(self.shell.get_desc(8).format(e))  # Failed to get NTP time: {}
         finally:
             sock.close()
-        print("Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6]))
+        print(self.shell.get_desc(68).format(*time.localtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
         self.add_hist("#boot")
+
+
 
 class IORedirector:
     def __init__(self, custom_io):
@@ -712,7 +719,7 @@ class sh:
                 end_idx = value_str.find(q, end_idx + len(q))
             
             if end_idx == -1:
-                raise ValueError("Unterminated string")
+                raise ValueError(shell.get_desc(67)) # "Unterminated string"
     
             return value_str[len(q):end_idx] # value_str[:end_idx + len(q)].strip()
         
@@ -884,7 +891,7 @@ class sh:
                 try:
                     key, description = line.split('\t', 1)
                     if key == str(keyword):
-                        ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(description.strip().split("\\x"))) # 
+                        ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(description.strip().split("\\x"))) # expand \x1b and \x0d etc
                         return shell.subst_env(ret).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
                 except: 
                     return 'corrupt help file'
@@ -894,10 +901,10 @@ class sh:
 
     # error-message expander helpers
     def _ea(shell, cmdenv):
-        print(shell.get_desc('9').format(cmdenv['args'][0])) # {}: missing operand(s)
+        print(shell.get_desc(9).format(cmdenv['args'][0])) # {}: missing operand(s)
 
     def _ee(shell, cmdenv, e):
-        print(shell.get_desc('10').format(cmdenv['args'][0],e)) # {}: {}
+        print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
 
 
     def file_exists(shell, filepath):
@@ -1167,7 +1174,7 @@ class sh:
         #    return "file1.txt\nfile2.txt\nfile3.txt"
 
 
-        for mod in ["sh0", "sh1", "sh2"]:
+        for mod in ["sh0", "sh1", "sh2", "sh2"]:
             gc.collect()
             module = __import__(mod)
 
@@ -1184,7 +1191,7 @@ class sh:
             del sys.modules[mod]
             gc.collect()
 
-        print(shell.get_desc('0').format(cmd)) # {} command not found
+        print(shell.get_desc(0).format(cmd)) # {} command not found
         return 1 # keep running
     
 
@@ -1204,6 +1211,7 @@ def main():
     with IORedirector(custom_io):
 
         shell = sh(custom_io)
+        custom_io.setshell(shell)
 
         # see sh1.py/test() for argument parsing tests
 
@@ -1219,7 +1227,7 @@ def main():
         #print("{}\nWelcome to {}{}{} - {} Micropython {} on {}\r\n".format(rr(), GRN, HOSTNAME, NORM ,os.uname().sysname, os.uname().version, os.uname().machine))
         #os.uname(): sysname='esp32', nodename='esp32', release='1.24.0-preview', version='v1.24.0-preview.120.g1a81b716d.dirty on 2024-07-22', machine='ESP32S CAM module no SPIRAM and OV2640 with ESP32')
         # also requests terminal size:-
-        print(shell.get_desc('43').format(__file__,__version__,os.uname().version,os.uname().machine)) #  \x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\r\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
+        print(shell.get_desc(43).format(__file__,__version__,os.uname().version,os.uname().machine)) #  \x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\r\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
 
         while run>0:
             run=1

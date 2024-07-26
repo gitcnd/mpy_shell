@@ -231,6 +231,10 @@ def curl(shell, cmdenv):
         method = "POST"
         headers["Content-Type"] = "application/x-www-form-urlencoded"
         headers["Content-Length"] = str(len(data))
+    if cmdenv['sw'].get('user'):
+        import ubinascii
+        headers["Authorization"] = "Basic " + ubinascii.b2a_base64(cmdenv['sw'].get('user').encode('utf-8')).decode('utf-8').strip()
+
 
     # Parse the URL
     protocol, host, port, path = _parse_url(url)
@@ -351,48 +355,6 @@ def wget(shell, cmdenv):
 
 
 
-def espnow(shell, cmdenv): # usage: espnowreceiver --op=send --channel=9 --msg="some message"
-    import network, espnow
-    op=cmdenv['sw'].get('op', 'rec') # send or rec
-
-    # A WLAN interface must be active to send()/recv()
-    sta = network.WLAN(network.STA_IF)  # Or network.AP_IF
-    sta.active(True)
-    chan = int(cmdenv['sw'].get('channel', -1))
-    if chan >= 0: sta.config(channel=chan)  # Set a specific WLAN channel
-    #sta.disconnect()       # For ESP8266
-
-    e = espnow.ESPNow()
-    e.active(True)
-    if op == 'send':
-        msg=cmdenv['sw'].get('msg', 'Hello espnow world; at ' + now(shell, cmdenv)) # default message
-        peer = b'\xff\xff\xff\xff\xff\xff'  # broadcast mac address to all esp32's (not esp8266)
-        try:
-            e.add_peer(peer)      # Must add_peer() before send()
-        except: # OSError: (-12395, 'ESP_ERR_ESPNOW_EXIST')
-            pass
-        e.send(peer, msg)
-        print(f"Sent: {msg}")
-    else:
-        print(shell.get_desc(35).format( shell.get_desc(36).format(chan) if chan >= 0 else "") ) # f"Listening for espnow packets{cm}. Hit ^C to stop:")  # cm=f" on channel {chan}" if chan >= 0 else ""
-
-        while True:
-            host, msg = e.recv()
-            if msg:             # msg == None if timeout in recv()
-                print(f"From: {host} got: {msg}")
-                if msg == b'end' or cmdenv['sw'].get('one', False):
-                    break
-    e.active(False)
-
-# Below not finished
-def espnowreceiver(shell, cmdenv): # usage: espnowreceiver --channel=9
-    cmdenv['sw']['op']='rec'
-    espnow(shell, cmdenv)  # same as alias
-    
-def espnowsender(shell, cmdenv): # usage: espnowreceiver --channel=9
-    cmdenv['sw']['op']='send'
-    espnow(shell, cmdenv)  # same as alias
- 
 def telnetd(shell, cmdenv): # usage: telnetd --port=23
     shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
 
