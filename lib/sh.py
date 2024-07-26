@@ -1,6 +1,6 @@
 # sh.py
 
-__version__ = '1.0.20240720'  # Major.Minor.Patch
+__version__ = '1.0.20240726'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for iMicroPython.  https://github.com/gitcnd/mpy_shell
@@ -614,19 +614,19 @@ class CustomIO:
         except Exception as e:
             print(self.shell.get_desc('7').format(e))  # Socket setup failed: {}
 
-    """ # Method to open a listening socket on port 23 for Telnet
-    def open_listening_socket(self, port=23):
-        try:
-            pool = socketpool.SocketPool(wifi.radio)
-            server_sock = pool.socket(pool.AF_INET, pool.SOCK_STREAM)
-            server_sock.bind(("", port))
-            server_sock.listen(1)
-            print("Listening on {}:{} for incoming Telnet connections.".format(wifi.radio.ipv4_address,port))
-            self.sockets.append(server_sock) # wrong approach - this is a listen, not a read or write socket...
-            self.initialize_buffers()
-        except Exception as e:
-            print("Listening socket setup failed:", e)
-    """
+#    """ # Method to open a listening socket on port 23 for Telnet
+#    def open_listening_socket(self, port=23):
+#        try:
+#            pool = socketpool.SocketPool(wifi.radio)
+#            server_sock = pool.socket(pool.AF_INET, pool.SOCK_STREAM)
+#            server_sock.bind(("", port))
+#            server_sock.listen(1)
+#            print("Listening on {}:{} for incoming Telnet connections.".format(wifi.radio.ipv4_address,port))
+#            self.sockets.append(server_sock) # wrong approach - this is a listen, not a read or write socket...
+#            self.initialize_buffers()
+#        except Exception as e:
+#            print("Listening socket setup failed:", e)
+#    """
 
     # Method to flush buffers
     def flush(self):
@@ -884,7 +884,8 @@ class sh:
                 try:
                     key, description = line.split('\t', 1)
                     if key == str(keyword):
-                        return shell.subst_env(description.strip()).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
+                        ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(description.strip().split("\\x"))) # 
+                        return shell.subst_env(ret).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
                 except: 
                     return 'corrupt help file'
 
@@ -1214,7 +1215,12 @@ def main():
 
         # test input
         run=1
-        print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # Request terminal size.
+        #print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # Request terminal size.
+        #print("{}\nWelcome to {}{}{} - {} Micropython {} on {}\r\n".format(rr(), GRN, HOSTNAME, NORM ,os.uname().sysname, os.uname().version, os.uname().machine))
+        #os.uname(): sysname='esp32', nodename='esp32', release='1.24.0-preview', version='v1.24.0-preview.120.g1a81b716d.dirty on 2024-07-22', machine='ESP32S CAM module no SPIRAM and OV2640 with ESP32')
+        # also requests terminal size:-
+        print(shell.get_desc('43').format(__file__,__version__,os.uname().version,os.uname().machine)) #  \x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\r\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
+
         while run>0:
             run=1
             user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} mpy\$ ",cache=True).format(os.getcwd())) # the stuff in the middle is the prompt

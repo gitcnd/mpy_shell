@@ -42,6 +42,7 @@ version	1.0.20240626
 40	Wrote {}b to {} from {}
 41	Uptime: {} hours, {} minutes, {} seconds
 42	{}-{:02}-{:02} {:02}:{:02}.{:02}
+43	\x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\r\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory

@@ -418,6 +418,7 @@ def shupdate(shell, cmdenv):
         curl(shell, cmdenv)
     print(shell.get_desc(38)) # re-run import shell to re-start the updated shell
     del sys.modules["sh"] # so we can re-run us later
+    raise OSError( shell.get_desc(38) )
 
 
 
