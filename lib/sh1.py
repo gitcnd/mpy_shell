@@ -7,12 +7,45 @@ __version__ = '1.0.20240626'  # Major.Minor.Patch
 # 
 # This is a separate module for holding some commands.
 # it is separate to save RAM
+# 3942+4180
 
 import gc
 import sys
 import os
 
 
+def reboot(shell, cmdenv):
+    import machine
+    import time
+    #print("Rebooting...") # Anything over 7 bytes is less to do a print(shell.get_desc(...)) on
+    print(shell.get_desc(27)) # Rebooting... (this is 5 bytes less than above)
+    machine.deepsleep(100)  # Sleep for 100 milliseconds - causes esp32 to reset
+    time.sleep(150)
+    machine.reset()
+
+def reason(shell, cmdenv):
+    import machine
+    r = machine.reset_cause()
+    print(shell.get_desc(26).format(r,shell.get_desc(20+r))) # CPU last reset reason {}: {} reset
+
+
+
+def df(shell, cmdenv):
+    try:
+        fs_stat = os.statvfs('/')
+        block_size = fs_stat[0]
+        total_blocks = fs_stat[2]
+        free_blocks = fs_stat[3]
+        total_size = total_blocks * block_size
+        free_size = free_blocks * block_size
+        used_size = total_size - free_size
+        print(f"Filesystem Size Used Available")
+        print(f"/ {shell.human_size(total_size)} {shell.human_size(used_size)} {shell.human_size(free_size)}")
+    except OSError as e:
+        shell._ee(cmdenv,e) # print(f"{}: {e}")
+
+def echo(shell, cmdenv):
+    print( cmdenv['line'].split(' ', 1)[1] if ' ' in cmdenv['line'] else '') # " ".join(cmdenv['args'][1:])
 
 def free(shell, cmdenv):
     try:

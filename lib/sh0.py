@@ -18,22 +18,6 @@ def _bare(f):
         f = f.rstrip('/')
     return f
 
-def sort(shell,cmdenv):  # 53 bytes
-    return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
-
-def reboot(shell, cmdenv):
-    import machine
-    #print("Rebooting...") # Anything over 7 bytes is less to do a print(shell.get_desc(...)) on
-    print(shell.get_desc(27)) # Rebooting... (this is 5 bytes less than above)
-    machine.deepsleep(100)  # Sleep for 100 milliseconds - causes esp32 to reset
-    time.sleep(150)
-    machine.reset()
-
-def reason(shell, cmdenv):
-    import machine
-    r = machine.reset_cause()
-    print(shell.get_desc(26).format(r,shell.get_desc(20+r))) # Rebooting...
-
 
 # f="/.history.txt"
 # import os
@@ -174,13 +158,6 @@ def rm(shell, cmdenv):
             except OSError as e:
                 shell._ee(cmdenv,e) # print(f"rm: {e}")
 
-def pwd(shell, cmdenv):
-    print(os.getcwd())
-
-
-def echo(shell, cmdenv):
-    print( cmdenv['line'].split(' ', 1)[1] if ' ' in cmdenv['line'] else '') # " ".join(cmdenv['args'][1:])
-
 
 def mkdir(shell, cmdenv):
     if len(cmdenv['args']) < 2:
@@ -227,19 +204,12 @@ def touch(shell, cmdenv):
 
 
 
-def df(shell, cmdenv):
-    try:
-        fs_stat = os.statvfs('/')
-        block_size = fs_stat[0]
-        total_blocks = fs_stat[2]
-        free_blocks = fs_stat[3]
-        total_size = total_blocks * block_size
-        free_size = free_blocks * block_size
-        used_size = total_size - free_size
-        print(f"Filesystem Size Used Available")
-        print(f"/ {shell.human_size(total_size)} {shell.human_size(used_size)} {shell.human_size(free_size)}")
-    except OSError as e:
-        shell._ee(cmdenv,e) # print(f"{}: {e}")
+def sort(shell,cmdenv):  # 53 bytes
+    return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
+
+
+def pwd(shell, cmdenv):
+    print(os.getcwd())
 
 
 def ping(shell, cmdenv):
@@ -315,37 +285,46 @@ def cls(shell, cmdenv):
 def setpin(shell, cmdenv):
     import machine
     if not 'pin' in cmdenv['sw'] or not 'value' in cmdenv['sw']:
-        print("usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
+        print(shell.get_desc(29)) # "usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
     else:
         #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
         led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
         led.value(int(cmdenv['sw']['value']))
 
-def get(shell, cmdenv):
+def pwm(shell, cmdenv): # was 4044 bytes
+    import machine
+    if not 'pin' in cmdenv['sw'] or not 'duty' in cmdenv['sw'] or not 'freq' in cmdenv['sw']:
+        print(shell.get_desc(28)) # .format(cmdenv['args'][0])) # usage: {} --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
+    else:
+        try:
+            pwm = machine.PWM(int(cmdenv['sw']['pin']), freq=int(cmdenv['sw']['freq']), duty_u16=int(cmdenv['sw']['duty']))    # create a PWM object on a pin and set freq and duty
+            # pwm.duty_u16(32768)            # set duty to 50%
+            # pwm.init(freq=5000, duty_ns=5000)    # reinitialise with a period of 200us, duty of 5us
+            # pwm.duty_ns(3000)            # set pulse width to 3us
+            if 'loop' in cmdenv['sw']:
+                ondelay=float(cmdenv['sw']['ondelay']) if 'ondelay' in cmdenv['sw'] else 0.5
+                offdelay=float(cmdenv['sw']['offdelay']) if 'offdelay' in cmdenv['sw'] else 0.5
+                voff=int(cmdenv['sw']['voff']) if 'voff' in cmdenv['sw'] else 0 if int(cmdenv['sw']['duty']) > 32767 else 65535
+                num=int(cmdenv['sw']['loop'])
+                while num>0:
+                    pwm.duty_u16(int(cmdenv['sw']['duty']))
+                    time.sleep(ondelay)
+                    pwm.duty_u16(voff)
+                    time.sleep(offdelay)
+                    num=num-1
+                pwm.deinit()
+        except Exception as e:
+            shell._ee(cmdenv, e)  # print(f"{}: {e}") # ValueError: invalid pin
+
+def getpin(shell, cmdenv):
     import machine
     if not 'pin' in cmdenv['sw']:
-        print("usage: get --pin=<pin_number>")
+        print(shell.get_desc(30)) # usage: getpin --pin=<pin_number> [--pullup=1]
     else:
-        led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
+        if 'pullup' in cmdenv['sw']:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_UP)
+        elif 'pulldown' in cmdenv['sw']:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_DOWN)
+        else:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
         print("pin {} is {}".format(cmdenv['sw']['pin'], led.value()))
-
-
-
-def _scrsize(shell, cmdenv):
-    print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # ANSI escape code to save cursor position, move to lower-right, get cursor position, then restore cursor position: responds with \x1b[130;270R
-    #ng: print("\033[18t", end='')  # get screen size: does nothing
-
-
-def _termtype(shell, cmdenv):
-    print("\033[c\033[>0c", end='')  # get type and extended type of terminal. responds with: 1b 5b 3f 36 32 3b 31 3b 32 3b 36 3b 37 3b 38 3b 39 63    1b 5b 3e 31 3b 31 30 3b 30 63
-    #                                                                                         \033[?62;1;2;6;7;8;9c (Device Attributes DA)             \033[>1;10;0c (Secondary Device AttributesA)
-    # 62: VT220 terminal.  1: Normal cursor keys.  2: ANSI terminal.  6: Selective erase.  7: Auto-wrap mode.  8: XON/XOFF flow control.  9: Enable line wrapping.
-    # 1: VT100 terminal.  10: Firmware version 1.0.  0: No additional information.
-
-
-#def termtitle(shell, cmdenv):
-#    if len(cmdenv['args']) < 2:
-#        shell._ea(cmdenv)  # print("cat: missing file operand")
-#    else:
-#        print(f"\033]20;\007\033]0;{cmdenv['args'][1]}\007", end='')  # get current title, then set a new title: does nothing
-

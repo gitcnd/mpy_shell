@@ -112,14 +112,14 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 ### Hardware Extensions
 - `blink` - flash the device LED  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `setpin` - set the state of a GPIO pin
-- `pins` - display the input coming in to a GPIO pin  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `pwm` - Use PWM to set the "analogue" state of a GPIO pin (e.g. move a servo)
+- `getpin` - display the input coming in to a GPIO pin
 - `adc` - display the analogue input from a GPIO  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `button` - display the state of the default button  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `photo` - take a photo from the device camera  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `neo_blink` - set one or more neopixel LED colours  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `blink_all_pins` - output pin numbers using TTL 1's and 0's to identify pins (e.g. 7 x 1-0 pulses for GPIO7)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `beep` - send an analogue tone to the default speaker  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `freq` - set a specific analogue output to a GPIO pin (e.g. move a servo)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 ####
 - `display` - control the screen  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `print` - write some text onto the screen  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)

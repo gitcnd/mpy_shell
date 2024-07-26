@@ -27,6 +27,9 @@ version	1.0.20240626
 25	Soft
 26	CPU last reset reason {}: {} reset
 27	Rebooting...
+28	usage: pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
+29	usage: setpin --pin=<pin_number> --value=<0 or 1>
+30	usage: getpin --pin=<pin_number> [--pullup=1]
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -113,6 +116,8 @@ sha256sum	Calculate SHA-256 checksums
 hexedit	View and edit files in hexadecimal format
 blink	Flash the device LED
 setpin	Set the state of a GPIO pin\n$GRN set --pin=<pin> --value=<state> $NORM Set specified pin to high (1) or low (0) state
+getpin	read the state of a digital GPIO pin\n$GRN get --pin=<pin> [--pullup=1]$NORM
+pwm	Set Pulse-Width-Modulation on a GPIO pin\n$GRN pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number>$YEL [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]$NORM\noptional:$YEL --loop=<n>$NORM turn PWM on and off this many times (ending with it off)\n	 $YEL --ondelay=<seconds>\n	  --offdelay=<seconds>\n	  --voff=<duty cyle for off>$NORM duty-cycle to output for the "off" state (defaults to 0 if --duty was >32767, or 65535 otherwise)\n
 pins	Display the input coming in to a GPIO pin\n$GRN pins <pin> $NORM Display input for the specified pin
 adc	Display the analogue input from a GPIO\n$GRN adc <pin> $NORM Display analogue input for the specified pin
 button	Display the state of the default button

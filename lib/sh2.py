@@ -385,3 +385,22 @@ def telnetd(shell, cmdenv): # usage: telnetd --port=23
     shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
 
    
+
+def _termtype(shell, cmdenv): # +50, -58 bytes
+    print("\033[c\033[>0c", end='')  # get type and extended type of terminal. responds with: 1b 5b 3f 36 32 3b 31 3b 32 3b 36 3b 37 3b 38 3b 39 63    1b 5b 3e 31 3b 31 30 3b 30 63
+    #                                                                                         \033[?62;1;2;6;7;8;9c (Device Attributes DA)             \033[>1;10;0c (Secondary Device AttributesA)
+    # 62: VT220 terminal.  1: Normal cursor keys.  2: ANSI terminal.  6: Selective erase.  7: Auto-wrap mode.  8: XON/XOFF flow control.  9: Enable line wrapping.
+    # 1: VT100 terminal.  10: Firmware version 1.0.  0: No additional information.
+
+def _scrsize(shell, cmdenv): # 70 bytes
+    print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # ANSI escape code to save cursor position, move to lower-right, get cursor position, then restore cursor position: responds with \x1b[130;270R
+    #ng: print("\033[18t", end='')  # get screen size: does nothing
+
+
+
+#def termtitle(shell, cmdenv):
+#    if len(cmdenv['args']) < 2:
+#        shell._ea(cmdenv)  # print("cat: missing file operand")
+#    else:
+#        print(f"\033]20;\007\033]0;{cmdenv['args'][1]}\007", end='')  # get current title, then set a new title: does nothing
+
