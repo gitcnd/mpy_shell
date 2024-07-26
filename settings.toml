@@ -1,6 +1,7 @@
 # Use ^s (ctrl-S) <enter> then ^q (ctrl-Q) <ender> to save then quit the micropython editor
 
 HOSTNAME = "Device-Hostname" #  Must be a short mDNS-compatible name (no underscores, no dots, no special other than hyphen, must start+end with alphanumeric)
+PASSWORD = "$5$bl0zjwUtt8T2WLJBH5Vadl/Ix6X+cFdJr5td4a0B+n0=$1txXuyLLzAvAMM/jYSlpRScy3nSwvTQ05Mv7At5LiSs=$" # use "passwd" command to change this. default password is: pass
 
 CIRCUITPY_WIFI_SSID = "Your WIFI SSID Here"   # this MicroPython settings.toml file is compatible with CircuitPython too 
 CIRCUITPY_WIFI_PASSWORD = "Your_password_here"
