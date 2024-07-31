@@ -210,7 +210,7 @@ def curl(shell, cmdenv):
     import socket
     gc.collect()
     if len(cmdenv['args']) < 2:
-        print(shell.get_desc(37)) # "usage: curl [-I] [-i] [--data=data] [--output=outfile] <url>"
+        print(shell.get_desc(37)) # "usage: curl [-I] [-O] [-i] [--data=data] [--output=outfile] <url>"
         return
 
     import ssl
@@ -220,7 +220,7 @@ def curl(shell, cmdenv):
     data = None
     include_headers = cmdenv['sw'].get('i', False)
 
-    ofn=cmdenv['sw'].get('output') if 'output' in cmdenv['sw'] else None
+    ofn=cmdenv['sw'].get('output') if 'output' in cmdenv['sw'] else url.split('/')[-1] if 'O'  in cmdenv['sw'] else None
 
     # Parse command line arguments
     if cmdenv['sw'].get('I'):
@@ -278,18 +278,28 @@ def curl(shell, cmdenv):
         sock.write(request.encode('utf-8'))
 
         # Receive and print response headers
-        response = b""
+        body = b""
 
         while True:
             chunk = sock.read(1024)
             if not chunk:
                 break
-            response += chunk
-            if b'\r\n\r\n' in response:
+            body += chunk
+            if b'\r\n\r\n' in body:
                 break
 
-        headers, body= response.split(b'\r\n\r\n', 1)
-        headers = headers
+        header_end = body.find(b'\r\n\r\n')
+        headers = body[:header_end]
+        body = body[header_end+4:]
+        status=0
+        try:
+            status=int(headers.split(None,2)[1].decode('utf-8'))
+        except:
+            pass
+
+
+        #headers, body= response.split(b'\r\n\r\n', 1)
+
         if include_headers:
             shell.fprint(headers,fn=ofn)
             shell.fprint(b'',fn=ofn)
@@ -348,6 +358,8 @@ def curl(shell, cmdenv):
 
     except Exception as e:
         print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
+
+    return status # e.g. 200
 
 
 def wget(shell, cmdenv):

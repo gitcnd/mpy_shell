@@ -139,7 +139,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `memtest` - test memory  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 ####
 - `bluescan` - show visible bluetooth devices and data  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
-- `scani2c` - show attached I2C devices found  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `scani2c` - show attached I2C devices found 
 ####
 - `temperature` - print current temperature  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `mag` - show the X, Y, and Z field strength from a magnetometer  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)

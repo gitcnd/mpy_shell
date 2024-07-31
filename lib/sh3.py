@@ -17,11 +17,14 @@ def create(shell, cmdenv):
         try:
             with open(path, 'wb') as file:
                 print(shell.get_desc(52)) # "Enter text to write to the file. Press ^D (Ctrl+D) to end.")
+                import sys
                 while True:
                     try:
-                        line = input()
+                        line = sys.stdin.read(1) # no echo
+                        # line = input()
                         if line=='\x04': break # mpy ^D
-                        file.write(line.encode('utf-8') + b'\n')
+                        #file.write(line.encode('utf-8') + b'\n')
+                        file.write(line.encode('utf-8'))
                     except EOFError:
                         break
         except Exception as e:
@@ -65,7 +68,27 @@ def espnow(shell, cmdenv): # usage: espnowreceiver --op=send --channel=9 --msg="
 def espnowreceiver(shell, cmdenv): # usage: espnowreceiver --channel=9
     cmdenv['sw']['op']='rec'
     espnow(shell, cmdenv)  # same as alias
-    
+
 def espnowsender(shell, cmdenv): # usage: espnowreceiver --channel=9
     cmdenv['sw']['op']='send'
     espnow(shell, cmdenv)  # same as alias
+
+
+
+def scani2c(shell, cmdenv):
+    if not 'scl' in cmdenv['sw'] or not 'sda' in cmdenv['sw']:
+        print(shell.get_desc(69)) # "usage: scani2c --scl=<scl pin number> --sda=<sda pin number>"
+    else:
+        from machine import I2C, Pin
+        bus=int(cmdenv['sw']['bus']) if 'bus' in cmdenv['sw'] else 0
+        scl=int(cmdenv['sw']['scl'])
+        sda=int(cmdenv['sw']['sda'])
+        i2c = I2C(bus,scl=scl,sda=sda)
+        print(shell.get_desc(70).format(bus,scl,sda)) # Scanning I2C devices on bus{} scl=gpio{} sda=gpio{}
+        devices = i2c.scan()
+
+        if devices:
+            print(shell.get_desc(71).format(devices)) # "I2C devices found:", devices
+        else:
+            print(shell.get_desc(72)) # No I2C devices found
+

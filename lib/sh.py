@@ -658,7 +658,8 @@ class CustomIO:
             print(self.shell.get_desc(8).format(e))  # Failed to get NTP time: {}
         finally:
             sock.close()
-        print(self.shell.get_desc(68).format(*time.localtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+        if self.shell:
+            print(self.shell.get_desc(68).format(*time.localtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
         self.add_hist("#boot")
 
 
@@ -842,10 +843,12 @@ class sh:
     # Print output to the screen, or a file
     def fprint(shell,line=None,fn=None,end=b'\n'):
         if line is None:
-            shell.pfn.close()
-            del shell.pfn
-            ret=shell._bw
-            del shell._bw
+            ret=None
+            if hasattr(shell, 'pfn'):
+                shell.pfn.close()
+                del shell.pfn
+                ret=shell._bw
+                del shell._bw
             return ret
         elif fn is None:
             print(line.decode('utf-8'),end=end.decode('utf-8') )
@@ -1174,7 +1177,7 @@ class sh:
         #    return "file1.txt\nfile2.txt\nfile3.txt"
 
 
-        for mod in ["sh0", "sh1", "sh2", "sh2"]:
+        for mod in ["sh0", "sh1", "sh2", "sh3"]:
             gc.collect()
             module = __import__(mod)
 
@@ -1231,7 +1234,7 @@ def main():
 
         while run>0:
             run=1
-            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{} mpy\$ ",cache=True).format(os.getcwd())) # the stuff in the middle is the prompt
+            user_input = input(shell.subst_env("$GRN$HOSTNAME$NORM:{}\$ ",cache=True).format(os.getcwd())) # the stuff in the middle is the prompt
             if user_input:
                 #print("#############")
                 #print(''.join(f' 0x{ord(c):02X} ' if ord(c) < 0x20 else c for c in user_input))

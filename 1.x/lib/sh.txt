@@ -36,7 +36,7 @@ version	1.0.20240626
 34	/lib/sh.mpy /lib/sh0.mpy /lib/sh1.mpy /lib/sh2.mpy /lib/sh3.mpy /lib/sh.txt
 35	Listening for espnow packets{}. Hit ^C to stop.
 36	 on channel {chan}
-37	usage: curl [-I] [-i] [--data=data] [--output=outfile] [--user=username:password] <url>
+37	usage: curl [-I] [-O] [-i] [--data=data] [--output=outfile] [--user=username:password] <url>
 38	re-run$GRN import sh$NORM to re-start the updated shell
 39	Error fetching {} from {}:{}: {}")
 40	Wrote {}b to {} from {}
@@ -51,14 +51,14 @@ version	1.0.20240626
 49	\nRepeat password did not match
 50	\nUnsupported hash algorithm in existing password.  Expected linux shadow format 5 (salted sha256)
 51	\nPassword removed
-52	Enter text to write to the file. Press ^D (Ctrl+D) to end
+52	Enter text to write to the file (n.b. does not echo back). Press ^D (Ctrl+D) to end
 53	Telnet server started on {}:{}
 54	 (mode {} not implimented)
 55	No response from client {} within timeout. Disconnected
 56	New telnet connection from {}
 57	server_socket err? s={}
 58	Handling exceptional condition for {}
-59	\x0d\nWelcome to {} - {} Micropython {} on {}\x0d\n
+59	\x0d\nWelcome to$GRN {} $NORM- {} Micropython {} on {}\x0d\n
 60	possible history_file error: {} for line: {}
 61	KeyboardInterrupt:
 62	Closed telnet client {} IP {}
@@ -68,6 +68,14 @@ version	1.0.20240626
 66	 sh: !{}: event not found
 67	Unterminated string
 68	Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+69	usage:$WHT scani2c$GRN --scl=<scl pin number> --sda=<sda pin number>$YEL --bus=<optional bus 0 or 1>$NORM
+70	Scanning I2C devices on bus{} scl=gpio{} sda=gpio{}
+71	I2C devices found: {}
+72	No I2C devices found.
+73	\x1b[32;1mcarnet updater v{}\x1b[0m using {}
+74	http://172.22.1.66/carnet/{}
+75	/lib
+76	\x1b[32;1mUpdate complete.\x1b[0m
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -153,6 +161,7 @@ sha1sum	Calculate SHA-1 checksums
 sha256sum	Calculate SHA-256 checksums
 hexedit	View and edit files in hexadecimal format
 blink	Flash the device LED
+scani2c	List devices attached to the specified I2C bus\n$WHT scani2c$GRN --scl=<scl pin number> --sda=<sda pin number>$YEL --bus=<optional bus 0 or 1>$NORM
 setpin	Set the state of a GPIO pin\n$GRN set --pin=<pin> --value=<state> $NORM Set specified pin to high (1) or low (0) state
 getpin	read the state of a digital GPIO pin\n$GRN get --pin=<pin> [--pullup=1]$NORM
 pwm	Set Pulse-Width-Modulation on a GPIO pin\n$GRN pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number>$YEL [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]$NORM\noptional:$YEL --loop=<n>$NORM turn PWM on and off this many times (ending with it off)\n	 $YEL --ondelay=<seconds>\n	  --offdelay=<seconds>\n	  --voff=<duty cyle for off>$NORM duty-cycle to output for the "off" state (defaults to 0 if --duty was >32767, or 65535 otherwise)\n
@@ -177,7 +186,6 @@ espnow	Send/receive espnow messages\n$GRN espnow $YEL[options]$NORM (all options
 hardreset	Reboot the chip
 memtest	Test memory
 bluescan	Show visible Bluetooth devices and data
-scani2c	Show attached I2C devices found
 temperature	Print current temperature
 mag	Show the X, Y, and Z field strength from a magnetometer
 gps	Display your latitude and longitude
