@@ -102,6 +102,7 @@ class CustomIO:
             import network
             if network.WLAN(network.STA_IF).isconnected(): # self.get_wifi_ip(): 
                 self.set_time(self.shell)  # set the time if possible and not already set
+                self.add_hist("#boot")
 
 
     #def get_wifi_ip(self):
@@ -638,30 +639,43 @@ class CustomIO:
         while self.send_chars_to_all(""):
             pass # time.sleep(0.1)  # Prevent a tight loop
 
+    def time_set(self,ts,subsec=0):
+        tm = time.gmtime(ts)
+        machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6]+1, tm[3], tm[4], tm[5], subsec))
 
     def set_time(self,shell):
-        self.shell=shell
+        self.shell=shell 
         import struct
-        buf=b'\x1b' + 47 * b'\0'
+        # time.cloudflare.com: 162.159.200.123
+        # pool.ntp.org
+        # time4.google.com: 216.239.35.12
+        # time.apnic.net: 202.12.29.25
+    
+        msg=""
+        for ntpserver in ["162.159.200.123", "pool.ntp.org", "216.239.35.12", "time.nist.gov"]:
+            sock = None
+            if 1:#try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(3)
+                buf=b'\x1b' + 47 * b'\0'
+                sock.sendto(buf, (socket.getaddrinfo(ntpserver, 123)[0][-1])) # Send NTP request
+                buf, _ = sock.recvfrom(48)
+                ntp_ts=struct.unpack("!I", buf[40:44])[0] -2208988800 - 946684800 # convert from ntp (1900) to linux (1970) to micropython (2000)
+                subsec = int((struct.unpack("!I", buf[44:48])[0] / 2**32) * 1000000)  # Convert fractional part to microseconds
+                self.time_set(ntp_ts,subsec)
+                #tm = time.gmtime(ntp_ts)
+                #machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6]+1, tm[3], tm[4], tm[5], subsec))
+                msg=f" (set from {ntpserver})"
+                break
 
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(1)
-            # Send NTP request
-            sock.sendto(buf, (socket.getaddrinfo("pool.ntp.org", 123)[0][-1]))
-            buf, _ = sock.recvfrom(48)
-            rtc = machine.RTC()
-            rtc.datetime( time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800 - 946728000) ) # NTP timestamp starts from 1900, Unix from 1970
-            #print(buf[40:44]) # debug time weirdness
-            #machine.RTC().datetime = time.localtime(struct.unpack("!I", buf[40:44])[0] - 2208988800) # NTP timestamp starts from 1900, Unix from 1970
-        except Exception as e:
-            print(self.shell.get_desc(8).format(e))  # Failed to get NTP time: {}
-        finally:
-            sock.close()
-        if self.shell:
-            print(self.shell.get_desc(68).format(*time.localtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
-        self.add_hist("#boot")
-
+                sock.close()
+            #except Exception as e:
+            #    print("Failed to get NTP time from {ntpserver}: {}".format(e))  # Failed to get NTP time: {}
+            #finally:
+            #    sock.close()
+    
+        print("Time{} now: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(msg,*time.gmtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+    
 
 
 class IORedirector:

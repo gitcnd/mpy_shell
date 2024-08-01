@@ -1,6 +1,6 @@
 # sh2.py
 
-__version__ = '1.0.20240626'  # Major.Minor.Patch
+__version__ = '1.0.20240801'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -204,13 +204,19 @@ def _parse_url(url):
     return protocol, host, port, path
 
 
+def set_time(shell, cmdenv):
+    print(f"current: {time.gmtime()}")
+    shell.cio.set_time(shell)  # set the time if possible and not already set
+    print(f"now: {time.gmtime()}")
+
 
 def curl(shell, cmdenv):
     import ssl
     import socket
     gc.collect()
+    time_reset=None
     if len(cmdenv['args']) < 2:
-        print(shell.get_desc(37)) # "usage: curl [-I] [-O] [-i] [--data=data] [--output=outfile] <url>"
+        print(shell.get_desc(37)) # usage: curl [-I] [-O] [-i] [-s] [--data=data] [--output=outfile] [--user=username:password] <url>
         return
 
     import ssl
@@ -218,9 +224,11 @@ def curl(shell, cmdenv):
     method = "GET"
     headers = {"Host": "", "Connection": "close"}
     data = None
+    wb = None
     include_headers = cmdenv['sw'].get('i', False)
 
     ofn=cmdenv['sw'].get('output') if 'output' in cmdenv['sw'] else url.split('/')[-1] if 'O'  in cmdenv['sw'] else None
+
 
     # Parse command line arguments
     if cmdenv['sw'].get('I'):
@@ -300,6 +308,30 @@ def curl(shell, cmdenv):
 
         #headers, body= response.split(b'\r\n\r\n', 1)
 
+    
+        if ofn is not None: # get the file date
+            dstart = headers.find(b"Last-Modified:") # Last-Modified: Thu, 01 Aug 2024 00:50:11 GMT
+            if dstart != -1:
+                import machine
+                dend = headers.find(b'\r\n', dstart)
+                if dend == -1: dend = len(headers)
+                
+                # Extract the file date string
+                # print('Last-Modified:',headers[dstart + 14 :dend].strip().decode())
+                _, day, month_str, year, time_str, _ = headers[dstart + 14 :dend].strip().decode().split()
+                # print(f"day={day}, mo={month_str}, y={year}, time_str={time_str}")
+                month_map = { 'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12 }
+                hour, minute, sec = map(int, time_str.split(':'))
+                # print(f"hour={hour}, minute={minute}, sec={sec}")
+                file_time = (int(year), int(month_map[month_str]), int(day), 0, hour, minute, sec , 0)
+
+                time_reset=[time.ticks_ms(), time.mktime(time.gmtime())] # moment we changed the clock
+                # print(f"ft={file_time}, now={time_reset[1]}")
+                machine.RTC().datetime(file_time) # temp set the time to the date on the incoming file
+                # print(f"set={time.gmtime()}")
+
+
+
         if include_headers:
             shell.fprint(headers,fn=ofn)
             shell.fprint(b'',fn=ofn)
@@ -353,13 +385,31 @@ def curl(shell, cmdenv):
         # Close the socket
         sock.close()
         wb=shell.fprint(None,fn=ofn) # close output file
-        if ofn is not None:
+
+        if ofn is not None and 's' not in cmdenv['sw']:
             print(shell.get_desc(40).format(wb,ofn,url)) # "Wrote {wb}b to {ofn} from {url}")
 
     except Exception as e:
         print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
 
-    return status # e.g. 200
+    if time_reset is not None:
+        #print(f"rbefore={time.gmtime()}")
+
+        diff_ms = time.ticks_diff(time.ticks_ms(), time_reset[0])
+        seconds = diff_ms // 1000
+        microseconds = (diff_ms % 1000) * 1000
+        machine.RTC().datetime( (lambda t: (t[0], t[1], t[2], 0, t[3], t[4], t[5], microseconds))(time.gmtime(time_reset[1] + seconds)) )
+
+        #new_time=time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5)
+        #dif=int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) 
+        #print(f"rnow={time_reset[1]} dif={dif}s")
+        #machine.RTC().datetime(time.gmtime(time_reset[1] + dif )) # return time to close-to-correct now
+        #machine.RTC().datetime(time.gmtime(time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) )) # return time to close-to-correct now
+        #print(f"rset={time_reset[1]}")
+        #print(f"rnow={time.gmtime()}")
+
+    gc.collect()
+    return status, wb, ofn # e.g. 200
 
 
 def wget(shell, cmdenv):

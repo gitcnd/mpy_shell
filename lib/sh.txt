@@ -36,7 +36,7 @@ version	1.0.20240626
 34	/lib/sh.mpy /lib/sh0.mpy /lib/sh1.mpy /lib/sh2.mpy /lib/sh3.mpy /lib/sh.txt
 35	Listening for espnow packets{}. Hit ^C to stop.
 36	 on channel {chan}
-37	usage: curl [-I] [-O] [-i] [--data=data] [--output=outfile] [--user=username:password] <url>
+37	usage: curl [-I] [-O] [-i] [-s] [--data=data] [--output=outfile] [--user=username:password] <url>
 38	re-run$GRN import sh$NORM to re-start the updated shell
 39	Error fetching {} from {}:{}: {}")
 40	Wrote {}b to {} from {}
