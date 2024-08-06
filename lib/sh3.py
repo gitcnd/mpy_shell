@@ -1,12 +1,53 @@
 # sh3.py
 
-__version__ = '1.0.20240727'  # Major.Minor.Patch
+__version__ = '1.0.20240801'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
 # 
 # This is a separate module for holding some commands.
 # it is separate to save RAM
+
+
+def wc(shell, cmdenv): # 249 bytes
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv)  # print("wc: missing file operand")
+    else:
+        path = cmdenv['args'][1]
+        try:
+            with open(path, 'rb') as file:
+                lines = 0
+                words = 0
+                bytes_count = 0
+                while True:
+                    chunk = file.read(512)
+                    if not chunk:
+                        break
+                    lines += chunk.count(b'\n')
+                    words += len(chunk.split())
+                    bytes_count += len(chunk)
+                print(f"{lines} {words} {bytes_count} {path}")
+        except Exception as e:
+            shell._ee(cmdenv, e)  # print(f"wc: {e}")
+
+
+
+def history(shell, cmdenv):
+    import time
+    try:
+        with open("/.history.txt", "r") as file:
+            for index, line in enumerate(file, start=1):
+                parts = line.strip().split("\t")
+                if len(parts) < 2:
+                    continue
+                #date_time = time.localtime(int(parts[0]))
+                mtime = time.localtime(int(parts[0]))
+                print(f"{index}\t{mtime[0]}-{mtime[1]:02}-{mtime[2]:02} {mtime[3]:02}:{mtime[4]:02}.{mtime[5]:02}\t{parts[1]}")
+                #print(f"{index}\t{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}\t{parts[1]}")
+
+    except Exception as e:
+        print(f"Error reading history: {e}")
+
 
 
 def create(shell, cmdenv):

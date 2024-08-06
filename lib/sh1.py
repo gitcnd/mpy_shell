@@ -1,6 +1,6 @@
 # sh1.py
 
-__version__ = '1.0.20240626'  # Major.Minor.Patch
+__version__ = '1.0.20240802'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -30,19 +30,31 @@ def reason(shell, cmdenv):
 
 
 
-def df(shell, cmdenv):
-    try:
-        fs_stat = os.statvfs('/')
-        block_size = fs_stat[0]
-        total_blocks = fs_stat[2]
-        free_blocks = fs_stat[3]
-        total_size = total_blocks * block_size
-        free_size = free_blocks * block_size
-        used_size = total_size - free_size
-        print(f"Filesystem Size Used Available")
-        print(f"/ {shell.human_size(total_size)} {shell.human_size(used_size)} {shell.human_size(free_size)}")
-    except OSError as e:
-        shell._ee(cmdenv,e) # print(f"{}: {e}")
+def touch(shell, cmdenv): # 225 bytes
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv) # print("touch: missing file operand")
+    else:
+        # path = cmdenv['args'][1]
+        for path in cmdenv['args'][1:]:
+            try:
+                try:
+                    # Try to open the file in read-write binary mode
+                    with open(path, 'r+b') as file:
+                        first_char = file.read(1)
+                        if first_char:
+                            file.seek(0)
+                            file.write(first_char)
+                        else:
+                            raise OSError(2, '') # 'No such file or directory')  # Simulate file not found to recreate it
+                except OSError as e:
+                    if e.args[0] == 2:  # Error code 2 corresponds to "No such file or directory"
+                        with open(path, 'wb') as file:
+                            pass  # Do nothing after creating the file
+                    else:
+                        raise e  # Re-raise the exception if it is not a "file not found" error
+            except Exception as e:
+                shell._ee(cmdenv, e)  # print(f"{}: {e}")
+
 
 def echo(shell, cmdenv):
     print( cmdenv['line'].split(' ', 1)[1] if ' ' in cmdenv['line'] else '') # " ".join(cmdenv['args'][1:])
@@ -53,9 +65,10 @@ def free(shell, cmdenv):
         total_memory = gc.mem_alloc() + gc.mem_free()
         free_memory = gc.mem_free()
         used_memory = gc.mem_alloc()
-        print(f"Total Memory: {total_memory} bytes")
-        print(f"Used Memory: {used_memory} bytes")
-        print(f"Free Memory: {free_memory} bytes")
+        #print(f"Total Memory: {total_memory} bytes")
+        #print(f"Used Memory: {used_memory} bytes")
+        #print(f"Free Memory: {free_memory} bytes")
+        print(shell.get_desc(81).format(total_memory,used_memory,free_memory))
     except Exception as e:
         shell._ee(cmdenv, e)  # print(f"free: {e}")
 

@@ -1,6 +1,6 @@
 # sh.py
 
-__version__ = '1.0.20240726'  # Major.Minor.Patch
+__version__ = '1.0.20240804'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for iMicroPython.  https://github.com/gitcnd/mpy_shell
@@ -22,16 +22,17 @@ __version__ = '1.0.20240726'  # Major.Minor.Patch
 # 
 # 1718841600 # 2024/06/20 
 # TODO:
+#  handle /lib/ in mv properly (chop last /)
 #  tab-completion on lib/part
 #  semicolons in commands
-#  only try setting time once
 #  dir something*.gz
 #  cp somethiong*.gz lib
 #  . exec
 #  from sh import run_blah
 #  .bashrc
 # handle ^C in telnet
-# investigate sketchy ntp set_time things
+# tab on nothing auto-completes to "clear"?
+
 
 import os
 import sys
@@ -358,6 +359,7 @@ class CustomIO:
                 self._TERM_HEIGHT, self._TERM_WIDTH = map(int, seq[:-1].split(';'))
             except Exception as e:
                 print(self.shell.get_desc(64).format(seq[:-1],e,  binascii.hexlify(seq)  )) # "term-size set command {} error: {}; seq={}"
+                # when 2+ simultaneous terminals are connected, we get them all replying to us at the same time :-(
             return self._line, 'sz', self._cursor_pos
         elif seq.startswith('>') and seq.endswith('c'):  # Extended device Attributes
             self._TERM_TYPE_EX = seq[1:-1]
@@ -375,8 +377,8 @@ class CustomIO:
         except OSError:
             # If an OSError is raised, the file system is read-only
             if retry:
-                import storage
                 try:
+                    import storage
                     storage.remount("/", False)
                     add_hist(self, line, False)
                 except: 
@@ -652,30 +654,33 @@ class CustomIO:
         # time.apnic.net: 202.12.29.25
     
         msg=""
-        for ntpserver in ["162.159.200.123", "pool.ntp.org", "216.239.35.12", "time.nist.gov"]:
-            sock = None
-            if 1:#try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.settimeout(3)
-                buf=b'\x1b' + 47 * b'\0'
-                sock.sendto(buf, (socket.getaddrinfo(ntpserver, 123)[0][-1])) # Send NTP request
-                buf, _ = sock.recvfrom(48)
-                ntp_ts=struct.unpack("!I", buf[40:44])[0] -2208988800 - 946684800 # convert from ntp (1900) to linux (1970) to micropython (2000)
-                subsec = int((struct.unpack("!I", buf[44:48])[0] / 2**32) * 1000000)  # Convert fractional part to microseconds
-                self.time_set(ntp_ts,subsec)
-                #tm = time.gmtime(ntp_ts)
-                #machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6]+1, tm[3], tm[4], tm[5], subsec))
-                msg=f" (set from {ntpserver})"
-                break
-
-                sock.close()
-            #except Exception as e:
-            #    print("Failed to get NTP time from {ntpserver}: {}".format(e))  # Failed to get NTP time: {}
-            #finally:
-            #    sock.close()
+        try:
+            for ntpserver in shell.get_desc(77).split(): # ["162.159.200.123", "pool.ntp.org", "216.239.35.12", "time.nist.gov"]:
+                sock = None
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock.settimeout(3)
+                    buf=b'\x1b' + 47 * b'\0'
+                    sock.sendto(buf, (socket.getaddrinfo(ntpserver, 123)[0][-1])) # Send NTP request
+                    buf, _ = sock.recvfrom(48)
+                    ntp_ts=struct.unpack("!I", buf[40:44])[0] -2208988800 - 946684800 # convert from ntp (1900) to linux (1970) to micropython (2000)
+                    subsec = int((struct.unpack("!I", buf[44:48])[0] / 2**32) * 1000000)  # Convert fractional part to microseconds
+                    self.time_set(ntp_ts,subsec)
+                    #tm = time.gmtime(ntp_ts)
+                    #machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6]+1, tm[3], tm[4], tm[5], subsec))
+                    msg=shell.get_desc(78).format(ntpserver) # " (set from {ntpserver})"
+                    break
     
-        print("Time{} now: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(msg,*time.gmtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+                    sock.close()
+                except Exception as e:
+                    print(shell.get_desc(82).format(ntpserver, e))  # Failed to get NTP time from {}: {}
+                finally:
+                    sock.close()
+            print(shell.get_desc(79).format(msg,*time.gmtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+        except Exception as e:
+            print("terr:{}".format(e))
     
+        #print("Time{} now: {:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(msg,*time.gmtime()[:6])) # Time set to: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
 
 
 class IORedirector:
@@ -745,31 +750,34 @@ class sh:
 
     def _strip_cmt(shell, line):
         quote_char = None
-        for i, char in enumerate(line):
-            if char in ('"', "'"):
-                if quote_char is None:
-                    quote_char = char
-                elif quote_char == char and (i == 0 or line[i-1] != '\\'):
-                    quote_char = None
-            elif char == '#' and quote_char is None:
-                return line[:i].strip()
+        if "#" in line:
+            if any(char in line for char in ['"', "'"]):
+                for i, char in enumerate(line):
+                    if char in ('"', "'"):
+                        if quote_char is None:
+                            quote_char = char
+                        elif quote_char == char and (i == 0 or line[i-1] != '\\'):
+                            quote_char = None
+                    elif char == '#' and quote_char is None:
+                        return line[:i].strip()
+            else:
+                line=line.split('#', 1)[0]
         return line.strip()
 
 
     def _rw_toml(shell, op, key, value=None, default=None, subst=False):
-        tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
-        old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
 
         try:
             infile = open(shell.settings_file, 'r')
         except OSError:
             if op == 'w':
                 open(shell.settings_file, 'w').close() # create empty one if missing
-                infile = open(shell.settings_file, 'r')
-            else:
-                return None
+            return default
 
-        outfile = open(tmp, 'w') if op == "w" else None
+        outfile = None
+        if op == "w":
+            tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
+            outfile = open(tmp, 'w')
     
         in_multiline = False
         extra_iteration = 0
@@ -787,13 +795,13 @@ class sh:
                 break
 
             line += iline
-            iline = ''
             stripped_line = shell._strip_cmt(line) # remove comments too (not ideal, but good enough 99.9% of the time)
 
             if in_multiline:
                 if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
                     in_multiline = '' # tell it not to re-check next
                 else:
+                    line=stripped_line
                     continue
 
             if not stripped_line.startswith('#'):
@@ -834,7 +842,6 @@ class sh:
                             elif value[0] in '+-.0123456789"\'': # Update the variable
                                 line = f'{key} = {value}\n'
                             else:
-                                #line = f'{key} = "{value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")}"\n' 
                                 line = '{} = "{}"\n'.format(key, value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t"))
                             key=None
 
@@ -849,6 +856,7 @@ class sh:
             outfile.close()
             # Replace old settings with the new settings
             import sh0  # load mv command
+            old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
             sh0.mv(shell, {'sw': {}, 'args': ['mv', shell.settings_file, old]}) # '/settings_old.toml'
             sh0.mv(shell, {'sw': {}, 'args': ['mv', tmp, shell.settings_file]})
             del sys.modules['sh0']
@@ -910,8 +918,8 @@ class sh:
                     if key == str(keyword):
                         ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(description.strip().split("\\x"))) # expand \x1b and \x0d etc
                         return shell.subst_env(ret).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
-                except: 
-                    return 'corrupt help file'
+                except Exception as e: 
+                    return f'corrupt help file: {e}'
 
         return None
 
@@ -923,13 +931,6 @@ class sh:
     def _ee(shell, cmdenv, e):
         print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
 
-
-    def file_exists(shell, filepath):
-        try:
-            os.stat(filepath)
-            return True
-        except OSError:
-            return False
 
 
     def exp_env(shell, start, value, cache=False):
@@ -1155,14 +1156,6 @@ class sh:
         return cmds
 
 
-    def human_size(shell,size):
-        # Convert bytes to human-readable format
-        for unit in ['B', 'K', 'M', 'G', 'T']:
-            if size < 1024:
-                return f"{round(size):,}{unit}"
-            size /= 1024
-        return f"{round(size):,}P"  # Handle very large sizes as petabytes
-
     
     def execute_command(shell,command):
         # """Execute a command and return its output. Placeholder for actual execution logic."""
@@ -1243,7 +1236,7 @@ def main():
         #print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # Request terminal size.
         #print("{}\nWelcome to {}{}{} - {} Micropython {} on {}\r\n".format(rr(), GRN, HOSTNAME, NORM ,os.uname().sysname, os.uname().version, os.uname().machine))
         #os.uname(): sysname='esp32', nodename='esp32', release='1.24.0-preview', version='v1.24.0-preview.120.g1a81b716d.dirty on 2024-07-22', machine='ESP32S CAM module no SPIRAM and OV2640 with ESP32')
-        # also requests terminal size:-
+        # also requests terminal size:- # save cursor position, moves 999 columns right, moves 999 down, \x1b[6n queries cursor position, restore position
         print(shell.get_desc(43).format(__file__,__version__,os.uname().version,os.uname().machine)) #  \x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\r\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
 
         while run>0:

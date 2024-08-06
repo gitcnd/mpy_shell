@@ -59,9 +59,9 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `diff` - Compare files line by line  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 
 ### Networking Utilities
-- `curl` - Transfer data from or to a server
+- `curl` - Transfer data (including files) from or to a server. -O and --output= options properly retain written file timestamps
 - `wget` - Non-interactive network downloader (alias for `curl`)
-- `ping` - Send ICMP ECHO_REQUEST to network hosts
+- `ping` - Send ICMP ECHO_REQUEST to network hosts  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `dig` - DNS lookup  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `ssh` - OpenSSH remote login client  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `scp` - Secure copy (remote file copy program)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
@@ -93,6 +93,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `sz` - Send files (ZModem)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `rz` - Receive files (ZModem)  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `now` - Display the current date and time (alias for `date`)
+- `set_time` - Sets the MicroPython time from NTP (if net was up at start of sh, this is automatic)
 - `who` - Show who is logged on  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `which` - Locate a command
 - `clear` - Clear the terminal screen
@@ -150,6 +151,8 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 ####
 - `wifi` - control your wifi settings  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 
+### Self Updater
+- `shupdate` - Overwrite all /lib/sh*py files with the latest versions from https://github.com/gitcnd/mpy_shell
 
 ## Unimplimented at present
 
@@ -163,16 +166,16 @@ new commands live in sh1.py or sh0.py etc as required (we want to keep the .mpy 
 ## Features
 
 ### Command History
-Implement a command history that allows users to scroll through previously entered commands using the up and down arrow keys (without wasting RAM, and persists across reboots)
+Includes a command history that allows users to intelligently (e.g. history autocomplete) scroll through previously entered commands using the up and down arrow keys (without wasting RAM, and persists across reboots)
 
 ### Tab Completion
-Add tab completion for command and file and directory names to improve user experience.
+Tab completion works for command and file and directory names to improve user experience.
 
 #### Piping and Redirection
-Basic support for some piping (`|`) and redirection (`>`, `>>`, `<`) to chain commands and redirect input/output.
+Basic support for some piping (`|`) and redirection (`>`, `>>`, `<`) to chain commands and redirect input/output. [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present) have not yet been written:-
 
 ### Environment Variables
-Allow users to set, view, and use environment variables.
+Allows users to set, view, and use environment variables.
 
 ### Scripting
 Support for easily running Python, using progressive compilation, enabling running larger programs that would not otherwise fit into RAM
@@ -181,7 +184,7 @@ Support for easily running Python, using progressive compilation, enabling runni
 Allow users to create command aliases for frequently used commands.
 
 ### Help System
-Implements a `help` command that provides information about available commands and their usage.
+Implements a `help` command that provides information about available commands and their usage, and a comprehensive `man` command.
 
 ### User Customization
 Supports settings.toml for configuration and environment where users can customize their shell experience.
@@ -191,7 +194,7 @@ Supports settings.toml for configuration and environment where users can customi
 
 * ENVironment variables come from, and write into, `settings.toml`
 * /.history.txt accumulates your command history (for up/down arrows and ! etc)
-* use ^C to exit back to the python repl \>>>
+* use `^C` (or type `exit`) to exit back to the python repl \>>>
 
 ## Example
 

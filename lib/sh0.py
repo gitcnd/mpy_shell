@@ -1,6 +1,6 @@
 # sh0.py
 
-__version__ = '1.0.20240626'  # Major.Minor.Patch
+__version__ = '1.0.20240802'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -19,10 +19,36 @@ def _bare(f):
     return f
 
 
-# f="/.history.txt"
-# import os
-# s=os.stat(f)
-# s
+def _file_exists(filepath):
+    try:
+        os.stat(filepath)
+        return True
+    except OSError:
+        return False
+
+
+def _human_size(size): # 137b
+    # Convert bytes to human-readable format
+    for unit in ['B', 'K', 'M', 'G', 'T']:
+        if size < 1024:
+            return f"{round(size):,}{unit}"
+        size /= 1024
+    return f"{round(size):,}P"  # Handle very large sizes as petabytes
+
+def df(shell, cmdenv): # 148 bytes
+    try:
+        fs_stat = os.statvfs('/')
+        block_size = fs_stat[0]
+        total_blocks = fs_stat[2]
+        free_blocks = fs_stat[3]
+        total_size = total_blocks * block_size
+        free_size = free_blocks * block_size
+        used_size = total_size - free_size
+        print(shell.get_desc(80).format(_human_size(total_size), _human_size(used_size), _human_size(free_size)))
+    except OSError as e:
+        shell._ee(cmdenv,e) # print(f"{}: {e}")
+
+
 def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
     args=cmdenv['args']
     tsort=[]
@@ -31,7 +57,7 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
         for f in sorted(items, reverse=bool(cmdenv['sw'].get('r'))):
             if (f.startswith('.') or ("/." in f and '/' not in f.split("/.")[-1])) and not cmdenv['sw'].get('a'): continue
             #print(f"f={f}")
-            if not shell.file_exists(f):
+            if not _file_exists(f):
                 print(shell.get_desc(12).format(cmdenv['args'][0], f))  # ls: cannot access 'sdf': No such file or directory
                 continue
             pt = os.stat(f)
@@ -44,7 +70,7 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
             sz=pt[6]
             if pt[0] & 0x4000 and ( pt[6]<1 or pt[6]>1000000000):
                 sz=4096 # some filesystem report 1,073,572,116 for folders
-            fsize = shell.human_size(sz) if cmdenv['sw'].get('h') else sz
+            fsize = _human_size(sz) if cmdenv['sw'].get('h') else sz
             ret=f"{fsize:,}\t{mtime_str}\t{f}{tag}" if cmdenv['sw'].get('l') else f"{f}{tag}"
             if cmdenv['sw'].get('t'):
                 tsort.append((pt[7], ret))
@@ -116,7 +142,7 @@ def mv(shell, cmdenv):
                 target = target[:-1]
             for path in cmdenv['args'][1:-1]:
                 dest = target + '/' + path
-                if interactive and shell.file_exists(dest):
+                if interactive and _file_exists(dest):
                     if not _confirm_overwrite(shell, dest):
                         continue
                 if cmd == 'cp':
@@ -127,7 +153,7 @@ def mv(shell, cmdenv):
             if len(cmdenv['args']) == 3:
                 path = cmdenv['args'][1]
                 try:
-                    if interactive and shell.file_exists(target):
+                    if interactive and _file_exists(target):
                         if not _confirm_overwrite(shell, target):
                             return
                     if cmd == 'cp':
@@ -175,32 +201,6 @@ def mkdir(shell, cmdenv):
 
 def rmdir(shell, cmdenv):
     mkdir(shell, cmdenv)
-
-
-def touch(shell, cmdenv):
-    if len(cmdenv['args']) < 2:
-        shell._ea(cmdenv) # print("touch: missing file operand")
-    else:
-        # path = cmdenv['args'][1]
-        for path in cmdenv['args'][1:]:
-            try:
-                try:
-                    # Try to open the file in read-write binary mode
-                    with open(path, 'r+b') as file:
-                        first_char = file.read(1)
-                        if first_char:
-                            file.seek(0)
-                            file.write(first_char)
-                        else:
-                            raise OSError(2, '') # 'No such file or directory')  # Simulate file not found to recreate it
-                except OSError as e:
-                    if e.args[0] == 2:  # Error code 2 corresponds to "No such file or directory"
-                        with open(path, 'wb') as file:
-                            pass  # Do nothing after creating the file
-                    else:
-                        raise e  # Re-raise the exception if it is not a "file not found" error
-            except Exception as e:
-                shell._ee(cmdenv, e)  # print(f"{}: {e}")
 
 
 
@@ -287,9 +287,12 @@ def setpin(shell, cmdenv):
     if not 'pin' in cmdenv['sw'] or not 'value' in cmdenv['sw']:
         print(shell.get_desc(29)) # "usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
     else:
-        #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
-        led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
-        led.value(int(cmdenv['sw']['value']))
+        try:
+            #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
+            led.value(int(cmdenv['sw']['value']))
+        except Exception as e:
+            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
 
 def pwm(shell, cmdenv): # was 4044 bytes
     import machine

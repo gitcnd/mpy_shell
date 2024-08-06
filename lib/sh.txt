@@ -1,4 +1,4 @@
-version	1.0.20240626
+version	1.0.20240804
 0	{} command not found
 1	No manual entry for {}
 2	Usage: man [keyword]
@@ -40,9 +40,9 @@ version	1.0.20240626
 38	re-run$GRN import sh$NORM to re-start the updated shell
 39	Error fetching {} from {}:{}: {}")
 40	Wrote {}b to {} from {}
-41	Uptime: {} hours, {} minutes, {} seconds
-42	{}-{:02}-{:02} {:02}:{:02}.{:02}
-43	\x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\x0d\x1b[u\x1b8${WHT}{} version {}$NORM on$GRN Micropython {} on {}$NORM
+41	Uptime: {} days, {} hours, {} minutes, {} seconds
+42	{}-{:02}-{:02} {:02}:{:02}.{:02} UTC
+43	\x1b[s\x1b7\x1b[999C\x1b[999B\x1b[6n\x0d\x1b[u\x1b8$WHT{} version {}$NORM on$GRN Micropython {} on {}$NORM
 44	Enter current password:
 45	Enter new password :
 46	\nRepeat new password:
@@ -76,6 +76,12 @@ version	1.0.20240626
 74	http://172.22.1.66/carnet/{}
 75	/lib
 76	\x1b[32;1mUpdate complete.\x1b[0m
+77	162.159.200.123 pool.ntp.org 216.239.35.12 time.nist.gov
+78	 (set from {})
+79	Time{} now: {:04}-{:02}-{:02} {:02}:{:02}:{:02}
+80	Filesystem\tSize\tUsed\tAvailable\n//\t\t{}\t{}\t{}
+81	Total Memory: {} bytes\nUsed Memory: {} bytes\nFree Memory: {} bytes
+82	Failed to get NTP time from {}: {}
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -118,7 +124,7 @@ export	Set environment variables
 printenv	Print all or part of the environment
 diff	Compare files line by line\n$GRN -u $NORM Output in unified format\n$GRN -q $NORM Report only when files differ
 curl	Transfer data from or to a server\n$GRN -i $NORM show headers\n$GRN -I $NORM do a HEAD request\n$GRN --data=myvar=value $NORM send POST data\n$GRN --output=file $NORM Write output to a specified file\n$GRN --user=username:password $NORM Use HTTP Basic authentication
-wget	Non-interactive network downloader - see$YEL curl$NORM command
+wget	Non-interactive network downloader - see${YEL} curl$NORM command
 ping	Send ICMP ECHO_REQUEST to network hosts\n$GRN -c $NORM Stop after sending count ECHO_REQUEST packets
 ifconfig	Print networking information (IP address, Gateway, BSSID, Signal Strength, TX Power, etc)
 dig	DNS lookup
