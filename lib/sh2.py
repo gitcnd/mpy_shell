@@ -410,6 +410,10 @@ def shupdate(shell, cmdenv):
 
 def backup(shell, cmdenv):
     import os
+    burl=cmdenv['sw'].get('url', shell._rw_toml('r',"BACKUP_URL",subst=True)) # e.g. BACKUP_URL = "http://192.168.1.123/mywebserver/upload.cgi?root=$HOSTNAME"
+    if burl is None:
+        print(shell.get_desc(84)) # re-run import shell to re-start the updated shell
+        return
 
     def bsend(fn,url):
         cmdenv['args']=['curl',url ] # shell.get_desc(31+mpy)+fn] # https://raw.githubusercontent.com/gitcnd/mpy_shell/main  - see also (32)
@@ -425,7 +429,7 @@ def backup(shell, cmdenv):
             else:
                 bsend(full_path,url)
 
-    spider("/","http://172.22.1.66/carnet/up.asp?root=" + shell._rw_toml('r',"HOSTNAME"))
+    spider("/",burl)
 
 
 
