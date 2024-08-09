@@ -22,6 +22,7 @@ __version__ = '1.0.20240804'  # Major.Minor.Patch
 # 
 # 1718841600 # 2024/06/20 
 # TODO:
+#  md5sum command
 #  handle /lib/ in mv properly (chop last /)
 #  tab-completion on lib/part
 #  semicolons in commands
@@ -911,7 +912,8 @@ class sh:
 
     # For reading help and error messages etc out of a text file
     def get_desc(shell,keyword):
-        with open(__file__.rsplit('.', 1)[0] + '.txt', 'r') as file:   # /lib/sh.txt
+        #with open(__file__.rsplit('.', 1)[0] + '.txt', 'r') as file:   # /lib/sh.txt # sometimes (if pwd is /lib/) __file__ is sh.mpy without the /lib/
+        with open("/lib/sh.txt", 'r') as file:
             for line in file:
                 try:
                     key, description = line.split('\t', 1)
@@ -1173,6 +1175,7 @@ class sh:
 
         # internal commands
         if cmd == 'exit':
+            os.chdir("/") # Leaving without doign this makes most future imports break
             return 0
 
 

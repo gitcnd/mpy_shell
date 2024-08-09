@@ -9,6 +9,51 @@ __version__ = '1.0.20240801'  # Major.Minor.Patch
 # it is separate to save RAM
 
 
+def ifconfig(shell, cmdenv): # 567b
+    import network
+    import binascii
+
+    # Initialize network interface
+    n=('AP_IF','STA_IF')
+    for i,lan in enumerate((network.AP_IF, network.STA_IF)):
+        wlan = network.WLAN(lan) # network.STA_IF
+        #wlan.active(True)
+
+        # Get network interface details
+        ip4_address, netmask, gateway, dns = wlan.ifconfig()
+        mac_address = binascii.hexlify(wlan.config('mac'), ':').decode()
+        try:
+            hostname = wlan.config('hostname')
+        except:
+            hostname = None
+        try:
+            tx_power = wlan.config('txpower')
+        except:
+            tx_power = None
+
+        # Print network interface details
+        print(f"{n[i]}: inet {ip4_address}  netmask {netmask}  gateway {gateway}")
+        print(f"\tether {mac_address}  (Ethernet)")
+        print(f"\tHostname: {hostname}")
+        print(f"\tDNS: {dns}")
+        print(f"\tTX power: {tx_power} dBm")
+
+        try:
+            ap_info = wlan.status('rssi')
+        except:
+            ap_info = None
+        if ap_info:
+            print(f"\tSSID: {wlan.config('essid')}")
+            print("\tBSSID: {}".format(mac_address))  # placeholder, needs actual BSSID
+            print(f"\tChannel: {wlan.config('channel')}")
+            #print(f"\tCountry: {wlan.config('country')}")
+            print(f"\tRSSI: {ap_info}")
+            #print(dir(wlan)) # mpy=['__class__', 'IF_AP', 'IF_STA', 'PM_NONE', 'PM_PERFORMANCE', 'PM_POWERSAVE', 'SEC_OPEN', 'SEC_OWE', 'SEC_WAPI', 'SEC_WEP', 'SEC_WPA', 'SEC_WPA2', 'SEC_WPA2_ENT', 'SEC_WPA2_WPA3', 'SEC_WPA3', 'SEC_WPA_WPA2', 'active', 'config', 'connect', 'disconnect', 'ifconfig', 'ipconfig', 'isconnected', 'scan', 'status']
+
+        #_show_mdns()
+        #del sys.modules["mdns"] # done. save space now.
+
+
 def wc(shell, cmdenv): # 249 bytes
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv)  # print("wc: missing file operand")

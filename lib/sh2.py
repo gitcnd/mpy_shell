@@ -52,51 +52,6 @@ import time
 #
 #"""
 
-def ifconfig(shell, cmdenv):
-    import network
-    import binascii
-
-    # Initialize network interface
-    n=('AP_IF','STA_IF')
-    for i,lan in enumerate((network.AP_IF, network.STA_IF)):
-        wlan = network.WLAN(lan) # network.STA_IF
-        #wlan.active(True)
-
-        # Get network interface details
-        ip4_address, netmask, gateway, dns = wlan.ifconfig()
-        mac_address = binascii.hexlify(wlan.config('mac'), ':').decode()
-        try:
-            hostname = wlan.config('hostname')
-        except:
-            hostname = None
-        try:
-            tx_power = wlan.config('txpower')
-        except:
-            tx_power = None
-
-        # Print network interface details
-        print(f"{n[i]}: inet {ip4_address}  netmask {netmask}  gateway {gateway}")
-        print(f"\tether {mac_address}  (Ethernet)")
-        print(f"\tHostname: {hostname}")
-        print(f"\tDNS: {dns}")
-        print(f"\tTX power: {tx_power} dBm")
-
-        try:
-            ap_info = wlan.status('rssi')
-        except:
-            ap_info = None
-        if ap_info:
-            print(f"\tSSID: {wlan.config('essid')}")
-            print("\tBSSID: {}".format(mac_address))  # placeholder, needs actual BSSID
-            print(f"\tChannel: {wlan.config('channel')}")
-            #print(f"\tCountry: {wlan.config('country')}")
-            print(f"\tRSSI: {ap_info}")
-            #print(dir(wlan)) # mpy=['__class__', 'IF_AP', 'IF_STA', 'PM_NONE', 'PM_PERFORMANCE', 'PM_POWERSAVE', 'SEC_OPEN', 'SEC_OWE', 'SEC_WAPI', 'SEC_WEP', 'SEC_WPA', 'SEC_WPA2', 'SEC_WPA2_ENT', 'SEC_WPA2_WPA3', 'SEC_WPA3', 'SEC_WPA_WPA2', 'active', 'config', 'connect', 'disconnect', 'ifconfig', 'ipconfig', 'isconnected', 'scan', 'status']
-
-        #_show_mdns()
-        #del sys.modules["mdns"] # done. save space now.
-
-
 def date(shell, cmdenv):
     now(shell, cmdenv)
     #date_time = time.localtime()
@@ -187,19 +142,18 @@ def set_time(shell, cmdenv):
 
 
 def curl(shell, cmdenv):
-    import ssl
-    import socket
+    import socket,os
     gc.collect()
     time_reset=None
     if len(cmdenv['args']) < 2:
-        print(shell.get_desc(37)) # usage: curl [-I] [-O] [-i] [-s] [--data=data] [--output=outfile] [--user=username:password] <url>
+        print(shell.get_desc(37)) # usage: curl [-I] [-O] [-i] [-s] [-q] [--data=data] [--file=/path/uploadfile.txt] [--output=outfile] [--user=username:password] <url>
         return
 
-    import ssl
     url = cmdenv['args'][-1]
     method = "GET"
     headers = {"Host": "", "Connection": "close"}
     data = None
+    upfile = None
     wb, status = None, None
     include_headers = cmdenv['sw'].get('i', False)
 
@@ -215,6 +169,19 @@ def curl(shell, cmdenv):
         method = "POST"
         headers["Content-Type"] = "application/x-www-form-urlencoded"
         headers["Content-Length"] = str(len(data))
+    if cmdenv['sw'].get('file'):
+        upfile = cmdenv['sw']['file']
+        try:
+            fstat=os.stat(upfile)
+        except Exception as e:
+            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
+            return
+        method = "POST"
+        headers["Content-Type"] = "application/octet-stream"
+        headers["Content-Disposition"] = f"attachment; filename={upfile}"
+        headers["Content-Length"] = str(fstat[6])
+        mtime = time.gmtime(fstat[7])
+        headers["modified"] = f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02}T{mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}Z"  # "modified": "2023-08-07T13:45:00Z"
     if cmdenv['sw'].get('user'):
         import ubinascii
         headers["Authorization"] = "Basic " + ubinascii.b2a_base64(cmdenv['sw'].get('user').encode('utf-8')).decode('utf-8').strip()
@@ -224,7 +191,7 @@ def curl(shell, cmdenv):
     protocol, host, port, path = _parse_url(url)
     headers["Host"] = host
 
-    try:
+    if 1: #try:
         # Create a socket and connect
         #print(f"looking up host {host} port {port}")
         addr_info = socket.getaddrinfo(host, port)[0]
@@ -234,7 +201,10 @@ def curl(shell, cmdenv):
 
         # Wrap socket with SSL if using HTTPS
         if protocol == 'https':
-            sock = ssl.wrap_socket(sock, server_hostname=host)
+            import ssl
+            print(f"this might lock uip... new micropython bug? host={host}")
+            sock = ssl.wrap_socket(sock, server_hostname=host) # this locks up?
+            print("worked")
 
 #        """ # Create a socket pool
 #        pool = socketpool.SocketPool(wifi.radio)
@@ -260,6 +230,16 @@ def curl(shell, cmdenv):
 
         # Send HTTP request
         sock.write(request.encode('utf-8'))
+
+        # Send file if --file=
+        if upfile:
+            with open(upfile, 'rb') as file:
+                while True:
+                    request = file.read(1024)
+                    if not request:
+                        break
+                    sock.write(request)
+            print(shell.get_desc(83).format(fstat[6],upfile,url)) # $GRN Wrote {}b from {} to {} $NORM
 
         # Receive and print response headers
         body = b""
@@ -308,7 +288,7 @@ def curl(shell, cmdenv):
 
 
 
-        if include_headers:
+        if include_headers and 'q' not in cmdenv['sw']:
             shell.fprint(headers,fn=ofn)
             shell.fprint(b'',fn=ofn)
 
@@ -332,7 +312,8 @@ def curl(shell, cmdenv):
 
                 # Print the chunk data
                 chunk_data = body[:chunk_length] # .decode('utf-8')
-                shell.fprint(chunk_data, fn=ofn, end=b'')
+                if 'q' not in cmdenv['sw']:
+                    shell.fprint(chunk_data, fn=ofn, end=b'')
 
                 # Move to the next chunk, skipping the trailing \r\n
                 body = body[chunk_length + 2:]
@@ -347,7 +328,8 @@ def curl(shell, cmdenv):
         else:
             # Print the initial part of the body
             #shell.fprint(body.decode('utf-8'), fn=ofn, end=b'')
-            shell.fprint(body, fn=ofn, end=b'')
+            if 'q' not in cmdenv['sw']:
+                shell.fprint(body, fn=ofn, end=b'')
 
             # Read and print the remaining non-chunked data
             while True:
@@ -355,18 +337,21 @@ def curl(shell, cmdenv):
                 if not chunk:
                     break
                 #shell.fprint(chunk.decode('utf-8'), fn=ofn, end='')
-                shell.fprint(chunk, fn=ofn, end=b'')
+                if 'q' not in cmdenv['sw']:
+                    shell.fprint(chunk, fn=ofn, end=b'')
 
 
         # Close the socket
         sock.close()
-        wb=shell.fprint(None,fn=ofn) # close output file
+        wb=0
+        if 'q' not in cmdenv['sw']:
+            wb=shell.fprint(None,fn=ofn) # close output file
 
         if ofn is not None and 's' not in cmdenv['sw']:
             print(shell.get_desc(40).format(wb,ofn,url)) # "Wrote {wb}b to {ofn} from {url}")
 
-    except Exception as e:
-        print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
+    #except Exception as e:
+    #    print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
 
     if time_reset is not None:
         #print(f"rbefore={time.gmtime()}")
@@ -413,12 +398,36 @@ def shupdate(shell, cmdenv):
     import sys
     mpy = 1 if 'sh.mpy' in os.listdir('/lib') else 0
     for fn in shell.get_desc(33+mpy).split(' '): # /lib/sh.py /lib/sh0.py /lib/sh1.py /lib/sh2.py - see also (34)
+        print(fn)
         cmdenv['args']=['curl',shell.get_desc(31+mpy)+fn] # https://raw.githubusercontent.com/gitcnd/mpy_shell/main  - see also (32)
         cmdenv['sw']['output']=fn
         curl(shell, cmdenv)
     print(shell.get_desc(38)) # re-run import shell to re-start the updated shell
     del sys.modules["sh"] # so we can re-run us later
     raise OSError( shell.get_desc(38) )
+
+
+
+def backup(shell, cmdenv):
+    import os
+
+    def bsend(fn,url):
+        cmdenv['args']=['curl',url ] # shell.get_desc(31+mpy)+fn] # https://raw.githubusercontent.com/gitcnd/mpy_shell/main  - see also (32)
+        cmdenv['sw']['file']=fn
+        cmdenv['sw']['q']=True
+        curl(shell, cmdenv)
+
+    def spider(path,url):
+        for entry in os.listdir(path):
+            full_path = path + "/" + entry if path != "/" else "/" + entry # full_path = os.path.join(path, entry)
+            if os.stat(full_path)[0] & 0x4000: # if os.path.isdir(full_path):
+                spider(full_path,url)
+            else:
+                bsend(full_path,url)
+
+    spider("/","http://172.22.1.66/carnet/up.asp?root=" + shell._rw_toml('r',"HOSTNAME"))
+
+
 
 
 

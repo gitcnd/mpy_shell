@@ -28,8 +28,6 @@ def reason(shell, cmdenv):
     r = machine.reset_cause()
     print(shell.get_desc(26).format(r,shell.get_desc(20+r))) # CPU last reset reason {}: {} reset
 
-
-
 def touch(shell, cmdenv): # 225 bytes
     if len(cmdenv['args']) < 2:
         shell._ea(cmdenv) # print("touch: missing file operand")
@@ -380,8 +378,11 @@ def alias(shell, cmdenv):
         cat(shell, {'sw': {}, 'args': ['alias', '/settings.toml']}) # all aliases are stored in /settings.toml
         #shell._ea(cmdenv)
         return
-    key, value = cmdenv['line'].split(' ', 1)[1].strip().split('=', 1) # discard the prefix. Note that the = is not allowed to have spaces.
-    shell._rw_toml('w', key, value)
+    if "=" not in cmdenv['line']:
+        print(shell._rw_toml('r',cmdenv['args'][-1])) # print existing
+    else:
+        key, value = cmdenv['line'].split(' ', 1)[1].strip().split('=', 1) # discard the prefix. Note that the = is not allowed to have spaces.
+        shell._rw_toml('w', key, value)
 
 def export(shell, cmdenv):
     alias(shell, cmdenv)  # same as alias

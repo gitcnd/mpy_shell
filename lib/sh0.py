@@ -35,7 +35,8 @@ def _human_size(size): # 137b
         size /= 1024
     return f"{round(size):,}P"  # Handle very large sizes as petabytes
 
-def df(shell, cmdenv): # 148 bytes
+
+def df(shell, cmdenv): # 148 bytes - caution: _human_size
     try:
         fs_stat = os.statvfs('/')
         block_size = fs_stat[0]
@@ -49,7 +50,7 @@ def df(shell, cmdenv): # 148 bytes
         shell._ee(cmdenv,e) # print(f"{}: {e}")
 
 
-def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
+def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h - caution _human_size
     args=cmdenv['args']
     tsort=[]
 
@@ -61,7 +62,8 @@ def ls(shell,cmdenv):   # impliments -F -l -a -t -r -S -h
                 print(shell.get_desc(12).format(cmdenv['args'][0], f))  # ls: cannot access 'sdf': No such file or directory
                 continue
             pt = os.stat(f)
-            mtime = time.localtime(pt[7])
+            #mtime = time.localtime(pt[7])
+            mtime = time.gmtime(pt[7])
             #mtime_str = f"{mtime.tm_year}-{mtime.tm_mon:02}-{mtime.tm_mday:02} {mtime.tm_hour:02}:{mtime.tm_min:02}.{mtime.tm_sec:02}"
             #mtime[0]-=30
             mtime_str = f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02} {mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}"
@@ -212,6 +214,8 @@ def pwd(shell, cmdenv):
     print(os.getcwd())
 
 
+""" Not working in micropython
+
 def ping(shell, cmdenv):
     import ipaddress
     import socketpool
@@ -273,6 +277,7 @@ def ping(shell, cmdenv):
         #print(f"rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms")
         print(shell.get_desc(19).format(min_time,avg_time,max_time,mdev_time)) # rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms
 
+"""
 
 def clear(shell, cmdenv):
     print("\033[2J\033[H", end='')  # ANSI escape codes to clear screen
