@@ -69,6 +69,7 @@ Everything is written to save RAM and Flash; command bytecode is not loaded if y
 - `nc` - netcat arbitrary TCP and UDP connections and listens  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
 - `ifconfig` - Configure network interfaces 
 - `ftp` - File Transfer Protocol client  [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
+- `backup` - Send every file in every folder from your MCU up to your specified remote web server --url
 
 ### Package Management
 - `pip` - Package manager - aliases to help with installing   [**](https://github.com/gitcnd/mpy_shell#user-content-Unimplimented-at-present)
