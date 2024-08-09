@@ -83,8 +83,8 @@ version	1.0.20240804
 81	Total Memory: {} bytes\nUsed Memory: {} bytes\nFree Memory: {} bytes
 82	Failed to get NTP time from {}: {}
 83	$GRN Wrote {}b from {} to {} $NORM
-84	usage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
-backup	Send every file in every folder from your MCU up to a remote web server\nusage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
+84	usage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional URL tag>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
+backup	Send every file in every folder from your MCU up to a remote web server\nusage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional text to add to end of URL>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory

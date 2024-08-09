@@ -309,14 +309,19 @@ def curl(shell, cmdenv):
                     if not chunk:
                         break
                     body += chunk
+                    if len(body) > 2048: # flush it out of RAM now
+                        if 'q' not in cmdenv['sw']:
+                            shell.fprint(body[:1024], fn=ofn, end=b'')
+                            body=body[1024:]
+                            chunk_length = chunk_length - 1024
 
                 # Print the chunk data
-                chunk_data = body[:chunk_length] # .decode('utf-8')
+                chunk_data = body[:chunk_length] # .decode('utf-8')   # This slice returns a new sequence containing the elements from the beginning of body up to (but not including) the index chunk_length.
                 if 'q' not in cmdenv['sw']:
                     shell.fprint(chunk_data, fn=ofn, end=b'')
 
                 # Move to the next chunk, skipping the trailing \r\n
-                body = body[chunk_length + 2:]
+                body = body[chunk_length + 2:]                        # This slice returns a new sequence starting from the index chunk_length + 2 to the end of body.
 
                 # If body is empty, read more data
                 if not body:
@@ -410,7 +415,7 @@ def shupdate(shell, cmdenv):
 
 def backup(shell, cmdenv):
     import os
-    burl=cmdenv['sw'].get('url', shell._rw_toml('r',"BACKUP_URL",subst=True)) # e.g. BACKUP_URL = "http://192.168.1.123/mywebserver/upload.cgi?root=$HOSTNAME"
+    burl=cmdenv['sw'].get('url', shell._rw_toml('r',"BACKUP_URL",subst=True)) + cmdenv['sw'].get('tag', '')
     if burl is None:
         print(shell.get_desc(84)) # re-run import shell to re-start the updated shell
         return
