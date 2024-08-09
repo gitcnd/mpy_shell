@@ -1,6 +1,6 @@
 # sh0.py
 
-__version__ = '1.0.20240802'  # Major.Minor.Patch
+__version__ = '1.0.20240808'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -114,7 +114,7 @@ def cd(shell, cmdenv):
             shell._ee(cmdenv, e) # print(f"cd: {e}")
 
 
-def _cp(src, tgt):
+def _cp(shell, src, tgt, cmdenv):
     try:
         with open(src, 'rb') as src_file:
                 with open(tgt, 'wb') as dest_file:  # OSError: [Errno 30] Read-only filesystem
@@ -148,7 +148,7 @@ def mv(shell, cmdenv):
                     if not _confirm_overwrite(shell, dest):
                         continue
                 if cmd == 'cp':
-                    _cp(path, dest)
+                    _cp(shell, path, dest, cmdenv)
                 else:
                     os.rename(path, dest)
         else:
@@ -159,7 +159,7 @@ def mv(shell, cmdenv):
                         if not _confirm_overwrite(shell, target):
                             return
                     if cmd == 'cp':
-                        _cp(path, target)
+                        _cp(shell, path, target,cmdenv)
                     else:  # mv
                         if not fstat[0] == 0xFCD:
                             os.remove(target)
@@ -286,6 +286,22 @@ def clear(shell, cmdenv):
 def cls(shell, cmdenv):
     print("\033[2J", end='')  # ANSI escape code to clear screen
 
+
+def blink(shell, cmdenv):
+    if not 'pin' in cmdenv['sw']:
+        print(shell.get_desc(85)) # usage: blink --pin=<pin_number> [--rate=seconds] [--loop=count]
+    else:
+        import machine
+        rate = float( cmdenv['sw'].get('rate', 1.0))
+        loop = int( cmdenv['sw'].get('loop', -1)) * 2
+        try:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
+            while loop != 0: 
+                loop -= 1
+                led.value(loop & 1)
+                time.sleep(rate/2)
+        except Exception as e:
+            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
 
 def setpin(shell, cmdenv):
     import machine

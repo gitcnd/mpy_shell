@@ -1,6 +1,6 @@
 # sh1.py
 
-__version__ = '1.0.20240802'  # Major.Minor.Patch
+__version__ = '1.0.20240808'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -379,10 +379,10 @@ def alias(shell, cmdenv):
         #shell._ea(cmdenv)
         return
     if "=" not in cmdenv['line']:
-        print(shell._rw_toml('r',cmdenv['args'][-1])) # print existing
+        print(shell._rw_toml('r',[cmdenv['args'][-1]])) # print existing
     else:
         key, value = cmdenv['line'].split(' ', 1)[1].strip().split('=', 1) # discard the prefix. Note that the = is not allowed to have spaces.
-        shell._rw_toml('w', key, value)
+        shell._rw_toml('w', [key], value)
 
 def export(shell, cmdenv):
     alias(shell, cmdenv)  # same as alias
@@ -423,7 +423,7 @@ def _readpw(prompt):
 def passwd(shell, cmdenv):
     import ubinascii
     import uhashlib
-    cur = shell._rw_toml('r', 'PASSWORD') # password (used by telnetd etc) lives in /settings.toml key named PASSWORD
+    cur = shell._rw_toml('r', ['PASSWORD']) # password (used by telnetd etc) lives in /settings.toml key named PASSWORD
     if cur:
         pwd = _readpw(shell.get_desc(44)) # Enter current password:
         print('')
@@ -441,6 +441,6 @@ def passwd(shell, cmdenv):
         #if pwd=='':
         #    shell._rw_toml('w', 'PASSWORD', value=None)
         #else:
-        shell._rw_toml('w', 'PASSWORD', value=_chkpass(shell, 'create', pwd))
+        shell._rw_toml('w', ['PASSWORD'], value=_chkpass(shell, 'create', pwd))
         print(shell.get_desc(48)) # New password saved in /settings.toml
 

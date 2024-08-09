@@ -84,6 +84,7 @@ version	1.0.20240804
 82	Failed to get NTP time from {}: {}
 83	$GRN Wrote {}b from {} to {} $NORM
 84	usage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional URL tag>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
+85	usage: blink --pin=<pin_number> [--rate=seconds] [--loop=count]
 backup	Send every file in every folder from your MCU up to a remote web server\nusage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional text to add to end of URL>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
@@ -201,4 +202,5 @@ gps	Display your latitude and longitude
 radar	Output data from your attached radar device
 telnetd	Listen for terminal input over TCP/IP
 wifi	Control your Wi-Fi settings\n$GRN -c $NORM Connect to a network\n$GRN -d $NORM Disconnect from a network
+create	Save incomiong text (without echoing it) into the named file, ending when ^D encountered (for slow uploading of files char-by-char)
 shupdate	Overwrite all /lib/sh*.py files with the latest versions from https://github.com/gitcnd/mpy_shell

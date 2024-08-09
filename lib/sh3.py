@@ -1,12 +1,14 @@
 # sh3.py
 
-__version__ = '1.0.20240801'  # Major.Minor.Patch
+__version__ = '1.0.20240807'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
 # 
 # This is a separate module for holding some commands.
 # it is separate to save RAM
+
+import time
 
 
 def ifconfig(shell, cmdenv): # 567b
@@ -78,7 +80,6 @@ def wc(shell, cmdenv): # 249 bytes
 
 
 def history(shell, cmdenv):
-    import time
     try:
         with open("/.history.txt", "r") as file:
             for index, line in enumerate(file, start=1):
@@ -93,6 +94,27 @@ def history(shell, cmdenv):
     except Exception as e:
         print(f"Error reading history: {e}")
 
+
+
+def uptime(shell, cmdenv): # 112 bytes
+    # t = time.monotonic() # circuitpython
+    # print(shell.get_desc(41).format( int(t // 3600), int((t % 3600) // 60), int(t % 60)  )) # f"Uptime: {int(t // 3600)} hours, {int((t % 3600) // 60)} minutes, {int(t % 60)} seconds") # 39 bytes
+
+    # linux:
+    # 00:07:59 up 1 day,  9:38,  0 users,  load average: 0.52, 0.58, 0.59
+
+
+    import time
+    uptime_us = time.ticks_us()
+    # Convert microseconds to milliseconds, seconds, etc.
+    uptime_ms = uptime_us // 1000
+    uptime_seconds = uptime_ms // 1000
+    uptime_minutes = uptime_seconds // 60
+    uptime_hours = uptime_minutes // 60
+    uptime_days = uptime_hours // 24
+    
+    # Print the uptime in a readable format
+    print(shell.get_desc(41).format( uptime_days, uptime_hours % 24, uptime_minutes % 60, uptime_seconds % 60)) # Uptime: {} days, {} hours, {} minutes, {} seconds  f"Uptime: {uptime_days} days, {uptime_hours % 24} hours, {uptime_minutes % 60} minutes, {uptime_seconds % 60} seconds"
 
 
 def create(shell, cmdenv):
@@ -115,6 +137,32 @@ def create(shell, cmdenv):
                         break
         except Exception as e:
             shell._ee(cmdenv, e)  # print(f"cat: {e}")
+
+
+
+def sleep(shell, cmdenv): # not working
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv)
+        return
+    time.sleep(float(cmdenv['args'][1]))
+
+
+def _sleep(shell, cmdenv): # not working
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv)
+        return
+
+    import alarm
+    import microcontroller
+
+    print("Entering deep sleep...")
+
+    # Configure an alarm to wake up after specified period in seconds
+    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + int(cmdenv['args'][1]))
+
+    # Exit the running code and enter deep sleep until the alarm wakes the device
+    alarm.exit_and_deep_sleep_until_alarms(time_alarm)
+
 
 
 def espnow(shell, cmdenv): # usage: espnowreceiver --op=send --channel=9 --msg="some message"

@@ -1,6 +1,6 @@
 # sh.py
 
-__version__ = '1.0.20240804'  # Major.Minor.Patch
+__version__ = '1.0.20240808'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for iMicroPython.  https://github.com/gitcnd/mpy_shell
@@ -418,7 +418,7 @@ class CustomIO:
         self.server_socket.bind((ip_address, port))
         self.server_socket.listen(1)
 
-        self.tspassword=self.shell._rw_toml('r', 'PASSWORD') # ( defaults to "$5$bl0zjwUtt8T2WLJBH5Vadl/Ix6X+cFdJr5td4a0B+n0=$1txXuyLLzAvAMM/jYSlpRScy3nSwvTQ05Mv7At5LiSs=$", which is 'pass' )
+        self.tspassword=self.shell._rw_toml('r', ['PASSWORD']) # ( defaults to "$5$bl0zjwUtt8T2WLJBH5Vadl/Ix6X+cFdJr5td4a0B+n0=$1txXuyLLzAvAMM/jYSlpRScy3nSwvTQ05Mv7At5LiSs=$", which is 'pass' )
         print(self.shell.get_desc(53).format(ip_address,port)) # "Telnet server started on IP", ip_address, "port", port)
 
 
@@ -766,103 +766,127 @@ class sh:
         return line.strip()
 
 
-    def _rw_toml(shell, op, key, value=None, default=None, subst=False):
+    def _rw_toml(self, op, key, value=None, file=None, default=None, subst=False, include=False): # key is [list] (1 elem for set)
+        retd={}
+        order=list(key)
+        if file is None:
+            file = self.settings_file
 
         try:
-            infile = open(shell.settings_file, 'r')
+            infile = [ open(file, 'r') ]
         except OSError:
             if op == 'w':
-                open(shell.settings_file, 'w').close() # create empty one if missing
-            return default
+                open(file, 'w').close() # create empty one if missing
+                return default
 
         outfile = None
         if op == "w":
-            tmp = shell.settings_file.rsplit('.', 1)[0] + "_new." + shell.settings_file.rsplit('.', 1)[1] # /settings_new.toml
+            tmp = file.rsplit('.', 1)[0] + "_new." + file.rsplit('.', 1)[1] # /settings_new.toml
             outfile = open(tmp, 'w')
     
-        in_multiline = False
         extra_iteration = 0
         line = ''
+        sline = ''
+        iline = ''
+        inside_json = False
 
         while True:
             if extra_iteration < 1:
-                iline = infile.readline()
+                iline = infile[-1].readline()
+                while not iline and len(infile) >1:
+                    infile[-1].close()
+                    infile.pop()
+                    iline = infile[-1].readline()
                 if not iline:
-                    extra_iteration = 1
-                    iline = ''  # Trigger the final block execution
-            elif extra_iteration == 2:
-                extra_iteration = 0
+                    if op == 'w':
+                        extra_iteration = 1
+                        iline = ''  # Trigger the final block execution
+                    else:
+                        break
             else:
                 break
 
             line += iline
-            stripped_line = shell._strip_cmt(line) # remove comments too (not ideal, but good enough 99.9% of the time)
+            if include and iline.startswith('#include'):
+                ifile=self._strip_cmt(iline[9:])
+                if subst:
+                    ifile=self.subst_env(ifile, default=None)
+                try:
+                    infile.append( open(ifile, 'r') )
+                except Exception as e:
+                    raise Exception(f"#include {ifile}: {e}")
 
-            if in_multiline:
-                if stripped_line.endswith( in_multiline ) and not stripped_line.endswith(f'\\{in_multiline}'):
-                    in_multiline = '' # tell it not to re-check next
-                else:
-                    line=stripped_line
-                    continue
+            iline=self._strip_cmt(iline)
+            sline += iline # aggressively remove comments too
 
-            if not stripped_line.startswith('#'):
-                kv = stripped_line.split('=', 1)
-                if not in_multiline == '': # not just ended a multiline
-                    if len(kv) > 1 and kv[1].lstrip()[0] in {'"', "'", '(', '{', '['}:
-                        s=kv[1].lstrip()[0]
-                        in_multiline = { '(': ')', '{': '}', '[': ']' }.get(s, s)
-                        if kv[1].lstrip().startswith(f"{s}{s}{s}"):
-                            in_multiline = f"{e}{e}{e}"
-                        
-                        extra_iteration = 2 # skip reading another line, and go back to process this one (which might have the """ or ''' ending already on it) 
+            kv = sline.split('=', 1)
+
+            if not inside_json and len(kv)>1 and kv[1].strip()[0] in {'{', '['}:          # ('{' in iline or '[' in iline):
+                inside_json = True
+            if inside_json:
+                if sline.count('{') == sline.count('}') and sline.count('[') == sline.count(']'):
+                    inside_json = False
+            if inside_json:
+                continue
+
+            if len(kv) > 1 or extra_iteration == 1: # extra_iteration means "write if not found"
+                kvs=kv[0].strip()
+                if kvs in key or extra_iteration == 1:
+
+                    if op != 'w':
+                        #if not len(kv) > 1: return None # cannot happen if op != 'w'
+                        key.remove(kvs)
+                        ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(self._extr(kv[1]).split("\\x"))) # expand escape chars etc
+                        if subst:
+                            ret=self.subst_env(ret, default=None)
+                        if ret[0] in '[{(':
+                            import json
+                            ret=json.loads(ret)
+                        retd[kvs]=ret
+                        if not key: # got it/them all
+                            break
+
+
+                    elif value == '':
+                        line='' # Delete the variable
                         continue
+                    elif key is not None and len(key)>0:
+                        if isinstance(value,(dict, list, tuple)):
+                            import json
+                            line = '{} = {}\n'.format(key[0], json.dumps(value))
+                        elif value[0] in '+-.0123456789"\'': # Update the variable
+                            line = f'{key[0]} = {value}\n'
+                        else:
+                            line = '{} = "{}"\n'.format(key[0], value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")) 
+                        key=[]
 
-                if len(kv) > 1 or extra_iteration == 1:
-                    if kv[0].strip() == key or extra_iteration == 1:
 
-                        if op != 'w':
-                            if not len(kv) > 1:
-                                return None
-                            #ret= shell._extr(kv[1]).replace("\\u001b", "\u001b") if len(kv) > 1 else None # convert "\x1b[" to esc[ below
-                            ret= ''.join(chr(int(part[:2], 16)) + part[2:] if i > 0 else part for i, part in enumerate(shell._extr(kv[1]).split("\\x"))) # 
-                            if subst:
-                                ret=shell.subst_env(ret, dflt=None, cache=True)
-                            #if ret is not None and ret[0] in '[{(':
-                            if ret[0] in '[{(':
-                                import json
-                                ret=json.loads(ret)
-                            return ret
-
-                        elif value == '':
-                            line='' # Delete the variable
-                            continue
-                        elif key:
-                            if isinstance(value,(dict, list, tuple)):
-                                import json
-                                line = '{} = {}\n'.format(key, json.dumps(value))
-                            elif value[0] in '+-.0123456789"\'': # Update the variable
-                                line = f'{key} = {value}\n'
-                            else:
-                                line = '{} = "{}"\n'.format(key, value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t"))
-                            key=None
-
-            in_multiline = False
             if outfile:
                 outfile.write(line)
             line=''
+            sline=''
+            iline=''
 
 
-        infile.close()
+        infile[-1].close()
+        if op != 'w':
+            ret=[]
+            for key in order:
+                ret.append(retd.get(key, default))
+            if len(order)>1:
+                return ret
+            else:
+                return ret[0]
+                
         if outfile:
             outfile.close()
-            # Replace old settings with the new settings
+            old = file.rsplit('.', 1)[0] + "_old." + file.rsplit('.', 1)[1] # /settings_old.toml
             import sh0  # load mv command
-            old = shell.settings_file.rsplit('.', 1)[0] + "_old." + shell.settings_file.rsplit('.', 1)[1] # /settings_old.toml
-            sh0.mv(shell, {'sw': {}, 'args': ['mv', shell.settings_file, old]}) # '/settings_old.toml'
-            sh0.mv(shell, {'sw': {}, 'args': ['mv', tmp, shell.settings_file]})
-            del sys.modules['sh0']
-    
+            # Replace old settings with the new settings
+            sh0.mv(self, {'sw': {}, 'args': ['mv', file, old]})
+            sh0.mv(self, {'sw': {}, 'args': ['mv', tmp, file]})
 
+    
     # Print output to the screen, or a file
     def fprint(shell,line=None,fn=None,end=b'\n'):
         if line is None:
@@ -886,11 +910,10 @@ class sh:
     def os_getenv(shell, key, dflt=None, cache=False, subst=False):
         if cache and key in shell._cache:
             return shell._cache[key]
-        ret=shell._rw_toml('r', key, subst=subst) or dflt
+        ret=shell._rw_toml('r', [key], subst=subst) or dflt
         if cache:
            shell._cache[key] = ret
         return ret
-        #return shell._rw_toml('r',key) or dflt
 
 
     def subst_env(shell, value, dflt=None, cache=False):

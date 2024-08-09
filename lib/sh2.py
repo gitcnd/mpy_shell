@@ -1,6 +1,6 @@
 # sh2.py
 
-__version__ = '1.0.20240803'  # Major.Minor.Patch
+__version__ = '1.0.20240809'  # Major.Minor.Patch
 
 # Created by Chris Drake.
 # Linux-like shell interface for CircuitPython.  https://github.com/gitcnd/cpy_shell
@@ -68,51 +68,6 @@ def now(shell, cmdenv):
     ret=shell.get_desc(42).format(*time.localtime()[:6])
     if not cmdenv['sw'].get('op', False): print(ret)
     return ret
-
-
-def sleep(shell, cmdenv): # not working
-    if len(cmdenv['args']) < 2:
-        shell._ea(cmdenv)
-        return
-    time.sleep(float(cmdenv['args'][1]))
-
-
-def _sleep(shell, cmdenv): # not working
-    if len(cmdenv['args']) < 2:
-        shell._ea(cmdenv)
-        return
-
-    import alarm
-    import microcontroller
-
-    print("Entering deep sleep...")
-
-    # Configure an alarm to wake up after specified period in seconds
-    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + int(cmdenv['args'][1]))
-
-    # Exit the running code and enter deep sleep until the alarm wakes the device
-    alarm.exit_and_deep_sleep_until_alarms(time_alarm)
-
-
-def uptime(shell, cmdenv):
-    # t = time.monotonic() # circuitpython
-    # print(shell.get_desc(41).format( int(t // 3600), int((t % 3600) // 60), int(t % 60)  )) # f"Uptime: {int(t // 3600)} hours, {int((t % 3600) // 60)} minutes, {int(t % 60)} seconds") # 39 bytes
-
-    # linux:
-    # 00:07:59 up 1 day,  9:38,  0 users,  load average: 0.52, 0.58, 0.59
-
-
-    import time
-    uptime_us = time.ticks_us()
-    # Convert microseconds to milliseconds, seconds, etc.
-    uptime_ms = uptime_us // 1000
-    uptime_seconds = uptime_ms // 1000
-    uptime_minutes = uptime_seconds // 60
-    uptime_hours = uptime_minutes // 60
-    uptime_days = uptime_hours // 24
-    
-    # Print the uptime in a readable format
-    print(shell.get_desc(41).format( uptime_days, uptime_hours % 24, uptime_minutes % 60, uptime_seconds % 60)) # Uptime: {} days, {} hours, {} minutes, {} seconds  f"Uptime: {uptime_days} days, {uptime_hours % 24} hours, {uptime_minutes % 60} minutes, {uptime_seconds % 60} seconds"
 
 
 def _parse_url(url):
@@ -202,7 +157,7 @@ def curl(shell, cmdenv):
         # Wrap socket with SSL if using HTTPS
         if protocol == 'https':
             import ssl
-            print(f"this might lock uip... new micropython bug? host={host}")
+            print(f"this might lock up... new micropython bug? host={host}")
             sock = ssl.wrap_socket(sock, server_hostname=host) # this locks up?
             print("worked")
 
@@ -415,8 +370,8 @@ def shupdate(shell, cmdenv):
 
 def backup(shell, cmdenv):
     import os
-    burl=cmdenv['sw'].get('url', shell._rw_toml('r',"BACKUP_URL",subst=True)) + cmdenv['sw'].get('tag', '')
-    if burl is None:
+    burl=cmdenv['sw'].get('url', shell._rw_toml('r',["BACKUP_URL"],subst=True,default='')) + cmdenv['sw'].get('tag', '')
+    if burl is None or burl=='':
         print(shell.get_desc(84)) # re-run import shell to re-start the updated shell
         return
 
