@@ -907,16 +907,16 @@ class sh:
             shell._bw += len(line)+len(end)
 
 
-    def os_getenv(shell, key, dflt=None, cache=False, subst=False):
+    def os_getenv(shell, key, default=None, cache=False, subst=False):
         if cache and key in shell._cache:
             return shell._cache[key]
-        ret=shell._rw_toml('r', [key], subst=subst) or dflt
+        ret=shell._rw_toml('r', [key], subst=subst) or default
         if cache:
            shell._cache[key] = ret
         return ret
 
 
-    def subst_env(shell, value, dflt=None, cache=False):
+    def subst_env(shell, value, default=None, cache=False):
         result = ''
         i = 0
         while i < len(value):
