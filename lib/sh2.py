@@ -180,7 +180,8 @@ def curl(shell, cmdenv):
         request_lines = [f"{method} {path} HTTP/1.1"]
         request_lines.extend(f"{header}: {value}" for header, value in headers.items())
         request_lines.append("")  # End of headers
-        request_lines.append(data if data else "")  # Data for POST
+        if data:
+            request_lines.append(data)  # Data for POST
         request = "\r\n".join(request_lines) + "\r\n"
 
         # Send HTTP request
