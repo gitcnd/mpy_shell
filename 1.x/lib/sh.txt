@@ -29,7 +29,7 @@ version	1.0.20240804
 27	Rebooting...
 28	usage: pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
 29	usage: setpin --pin=<pin_number> --value=<0 or 1>
-30	usage: getpin --pin=<pin_number> [--pullup=1]
+30	usage: getpin --pin=<pin_number> [-a] [-d] [-l] [--loop=<times to repeat>] [-u] [--pullup=1] [-d] [--pulldown=1] [--atten=<attenuation 1.1, 1.5, 2.2, or 3.3 volts or 0, 2.5, 6, or 11 db>] [--bits=<precision 9, 10, 11, or 12>] [--delay=<seconds to sleep between loops>]
 31	https://raw.githubusercontent.com/gitcnd/mpy_shell/main
 32	https://raw.githubusercontent.com/gitcnd/mpy_shell/main/1.x
 33	/lib/sh.py /lib/sh0.py /lib/sh1.py /lib/sh2.py /lib/sh3.py /lib/sh.txt
@@ -85,7 +85,7 @@ version	1.0.20240804
 83	$GRN Wrote {}b from {} to {} $NORM
 84	usage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional URL tag>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
 85	usage: blink --pin=<pin_number> [--rate=seconds] [--loop=count]
-backup	Send every file in every folder from your MCU up to a remote web server\nusage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL --tag=<optional text to add to end of URL>$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
+backup	Send a file (or every file in every folder) from your MCU up to a remote web server\nusage:$WHT backup$GRN --url=https://your.upload.server/your_script.cgi?optional=\$HOSTNAME$YEL [--tag=<optional text to add to end of URL>] [one mor more files/folders to send]$NORM\n You can also set BACKUP_URL in /settings.toml to use as default --url
 dir	List directory contents (alias for ls -Flatr)
 ls	List directory contents\n$GRN -l $NORM List in long format\n$GRN -a $NORM Include hidden files\n$GRN -h $NORM Human-readable sizes\n$GRN -F $NORM append file classification indicator\n$GRN -t $NORM sort by time\n$GRN -S $NORM sort by size\n$GRN -r $NORM reverse order sort
 cd	Change directory\n$GRN cd <directory> $NORM Change to the specified directory
@@ -100,8 +100,7 @@ df	Report file system disk space usage\n$GRN -h $NORM Human-readable sizes\n$GRN
 free	show memory usage
 du	Estimate file space usage\n$GRN -h $NORM Human-readable sizes\n$GRN -s $NORM Display only a total for each argument
 rmdir	Remove empty directories\n$GRN --ignore-fail-on-non-empty $NORM Ignore each failure to remove a directory that is not empty
-touch	Change file timestamps or create an empty file
-XXtouch	Change file timestamps or create an empty file\n$GRN -c $NORM Do not create any files\n$GRN -d $NORM Use the specified time instead of the current time
+touch	Change file timestamps or create an empty file\n$GRN --date=yyyy,mm,dd,hh,mm,ss $NORM Use the specified datetime instead of the current\n$GRN --reference=<FILE> $NORM use this <FILE>'s time instead of current time
 vi	vim-like Text editor
 man	Display manual pages for commands\n$GRN man <command> $NORM Show the manual page for the specified command
 nano	Text editor
@@ -173,7 +172,7 @@ hexedit	View and edit files in hexadecimal format
 blink	Flash the device LED
 scani2c	List devices attached to the specified I2C bus\n$WHT scani2c$GRN --scl=<scl pin number> --sda=<sda pin number>$YEL --bus=<optional bus 0 or 1>$NORM
 setpin	Set the state of a GPIO pin\n$GRN set --pin=<pin> --value=<state> $NORM Set specified pin to high (1) or low (0) state
-getpin	read the state of a digital GPIO pin\n$GRN get --pin=<pin> [--pullup=1]$NORM
+getpin	read the state of an analogue/digital GPIO pin\n$GRN getpin --pin=<pin_number>$YEL [-a] [-u] [--pullup=1] [-d] [--pulldown=1] [--atten=<attenuation 1.1, 1.5, 2.2, or 3.3 volts or 0, 2.5, 6, or 11 db>] [--bits=<precision 9, 10, 11, or 12>]\n$GRN --pin\twhich GPIO pin to read\n$YEL -a\tread an analogue value instead of (default) digital 0 or 1\n -l or --loop=n  \tloop (keep reading) for n loops (or, -l forever until ^C)\n -u or --pullup=1\tturn on internal pullup resistor prior to reading\n -d or --pulldown=1\tturn on internal pulldown resistor prior to reading\n --atten=v\tset the ADC input voltage range from 0.0 to v, where v is either 1.1, 1.5, 2.2, or 3.3 volts or 0, 2.5, 6, or 11 db gain/attenuation\n --bits=b\tset the resolution of the ADC conversion to  9, 10, 11, or 12 bits\n --delay=<s>\tseconds to sleep between loops$NORM
 pwm	Set Pulse-Width-Modulation on a GPIO pin\n$GRN pwm --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number>$YEL [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]$NORM\noptional:$YEL --loop=<n>$NORM turn PWM on and off this many times (ending with it off)\n	 $YEL --ondelay=<seconds>\n	  --offdelay=<seconds>\n	  --voff=<duty cyle for off>$NORM duty-cycle to output for the "off" state (defaults to 0 if --duty was >32767, or 65535 otherwise)\n
 pins	Display the input coming in to a GPIO pin\n$GRN pins <pin> $NORM Display input for the specified pin
 adc	Display the analogue input from a GPIO\n$GRN adc <pin> $NORM Display analogue input for the specified pin
@@ -192,7 +191,7 @@ umount	Un-attach the SD card
 run	Execute a Python program from the shell\n$GRN run <file> $NORM Run the specified Python file
 espnowreceiver	Show incoming espnow messages
 espnowsender	Send espnow messages\n$GRN espnowsender <message> $NORM Send the specified message
-espnow	Send/receive espnow messages\n$GRN espnow $YEL[options]$NORM (all options are optional)\n$GRN $YEL--op=<send|rec>$NORM  send or recieve mode. default --op=rec\n$GRN $YEL--channel=2$NORM   default: use current (same as wifi A/P) channel\n$GRN $YEL--msg="<some message>"$NORM  default: Hello...\n$GRN $YEL--one$NORM  exit after recieving one message
+espnow	Send/receive espnow messages\n$GRN espnow $YEL[options]$NORM (all options are optional)\n$YEL --op=<send|rec>$NORM  send or recieve mode. default --op=rec\n$YEL --channel=2$NORM   default: use current (same as wifi A/P) channel\n$YEL --msg="<some message>"$NORM  default: Hello...\n$YEL --one$NORM  exit after recieving one message
 hardreset	Reboot the chip
 memtest	Test memory
 bluescan	Show visible Bluetooth devices and data

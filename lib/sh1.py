@@ -28,31 +28,6 @@ def reason(shell, cmdenv):
     r = machine.reset_cause()
     print(shell.get_desc(26).format(r,shell.get_desc(20+r))) # CPU last reset reason {}: {} reset
 
-def touch(shell, cmdenv): # 225 bytes
-    if len(cmdenv['args']) < 2:
-        shell._ea(cmdenv) # print("touch: missing file operand")
-    else:
-        # path = cmdenv['args'][1]
-        for path in cmdenv['args'][1:]:
-            try:
-                try:
-                    # Try to open the file in read-write binary mode
-                    with open(path, 'r+b') as file:
-                        first_char = file.read(1)
-                        if first_char:
-                            file.seek(0)
-                            file.write(first_char)
-                        else:
-                            raise OSError(2, '') # 'No such file or directory')  # Simulate file not found to recreate it
-                except OSError as e:
-                    if e.args[0] == 2:  # Error code 2 corresponds to "No such file or directory"
-                        with open(path, 'wb') as file:
-                            pass  # Do nothing after creating the file
-                    else:
-                        raise e  # Re-raise the exception if it is not a "file not found" error
-            except Exception as e:
-                shell._ee(cmdenv, e)  # print(f"{}: {e}")
-
 
 def echo(shell, cmdenv):
     print( cmdenv['line'].split(' ', 1)[1] if ' ' in cmdenv['line'] else '') # " ".join(cmdenv['args'][1:])
@@ -444,3 +419,33 @@ def passwd(shell, cmdenv):
         shell._rw_toml('w', ['PASSWORD'], value=_chkpass(shell, 'create', pwd))
         print(shell.get_desc(48)) # New password saved in /settings.toml
 
+
+def telnetd(shell, cmdenv): # usage: telnetd --port=23
+    shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
+
+
+def sort(shell,cmdenv):  # 53 bytes
+    return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
+
+
+def clear(shell, cmdenv):
+    print("\033[2J\033[H", end='')  # ANSI escape codes to clear screen
+
+
+def cls(shell, cmdenv):
+    print("\033[2J", end='')  # ANSI escape code to clear screen
+
+   
+""" Unused at present
+
+def _termtype(shell, cmdenv): # +50, -58 bytes
+    print("\033[c\033[>0c", end='')  # get type and extended type of terminal. responds with: 1b 5b 3f 36 32 3b 31 3b 32 3b 36 3b 37 3b 38 3b 39 63    1b 5b 3e 31 3b 31 30 3b 30 63
+    #                                                                                         \033[?62;1;2;6;7;8;9c (Device Attributes DA)             \033[>1;10;0c (Secondary Device AttributesA)
+    # 62: VT220 terminal.  1: Normal cursor keys.  2: ANSI terminal.  6: Selective erase.  7: Auto-wrap mode.  8: XON/XOFF flow control.  9: Enable line wrapping.
+    # 1: VT100 terminal.  10: Firmware version 1.0.  0: No additional information.
+
+def _scrsize(shell, cmdenv): # 70 bytes
+    print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # ANSI escape code to save cursor position, move to lower-right, get cursor position, then restore cursor position: responds with \x1b[130;270R
+    #ng: print("\033[18t", end='')  # get screen size: does nothing
+
+"""

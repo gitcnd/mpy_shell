@@ -52,23 +52,6 @@ import time
 #
 #"""
 
-def date(shell, cmdenv):
-    now(shell, cmdenv)
-    #date_time = time.localtime()
-    #print( shell.get_desc(42).format( date_time.tm_year,date_time.tm_mon,date_time.tm_mday,date_time.tm_hour,date_time.tm_min,date_time.tm_sec ) ) # f"{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}")
-    #print( shell.get_desc(42).format(*time.localtime()[:6]))
-
-
-def now(shell, cmdenv):
-    if time.localtime()[0]<2024:
-        #cio=shell.cio
-        #cio.set_time()  # set the time if possible and not already set
-        shell.cio.set_time(shell)  # set the time if possible and not already set
-    #ret="{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6])
-    ret=shell.get_desc(42).format(*time.localtime()[:6])
-    if not cmdenv['sw'].get('op', False): print(ret)
-    return ret
-
 
 def _parse_url(url):
     if "://" not in url:
@@ -94,6 +77,77 @@ def set_time(shell, cmdenv):
     print(f"current: {time.gmtime()}")
     shell.cio.set_time(shell)  # set the time if possible and not already set
     print(f"now: {time.gmtime()}")
+
+
+def _tpad(mtime): # convert from file times into esp32 setting time format
+    return(int(mtime[0]), int(mtime[1]), int(mtime[2]), 0, int(mtime[3]), int(mtime[4]), int(mtime[5]), 0)
+
+def _ftime(shell, fn, sw):
+    import os
+    try:
+        fstat=os.stat(fn)
+    except Exception as e:
+        print(shell.get_desc(10).format(fn,e)) # {}: {}
+        return ''
+    mtime = time.gmtime(fstat[7])
+    if sw:
+        return(_tpad(mtime)) # file_time = (int(year), int(month_map[month_str]), int(day), 0, hour, minute, sec , 0)
+    else:
+        return f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02}T{mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}Z"  # "2023-08-07T13:45:00Z"
+
+def _reset_time(time_reset, reset):
+    import machine
+    if reset: # fix our clock which was temporarily changed earlier
+        diff_ms = time.ticks_diff(time.ticks_ms(), time_reset[0])
+        #seconds = diff_ms // 1000
+        #microseconds = (diff_ms % 1000) * 1000
+        #print("time_reset", time_reset)
+        machine.RTC().datetime( (lambda t: (t[0], t[1], t[2], 0, t[3], t[4], t[5], (diff_ms % 1000) * 1000))(time.gmtime(time_reset[1] + diff_ms // 1000)) )
+        #new_time=time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5)
+        #dif=int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) 
+        #print(f"rnow={time_reset[1]} dif={dif}s")
+        #machine.RTC().datetime(time.gmtime(time_reset[1] + dif )) # return time to close-to-correct now
+        #machine.RTC().datetime(time.gmtime(time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) )) # return time to close-to-correct now
+        #print(f"rset={time_reset[1]}")
+        #print(f"rnow={time.gmtime()}")
+    else:
+        ret=[time.ticks_ms(), time.mktime(time.gmtime())] # moment we changed the clock
+        #print("time_set", time_reset)
+        machine.RTC().datetime(time_reset) # temp set the time to the date on the incoming file
+        return ret
+
+
+def touch(shell, cmdenv): # 225 bytes
+    if len(cmdenv['args']) < 2:
+        shell._ea(cmdenv) # print("touch: missing file operand")
+    else:
+        time_reset=None
+        # path = cmdenv['args'][1]
+        if 'reference' in cmdenv['sw']:
+            time_reset=_reset_time( _ftime( shell, cmdenv['sw']['reference'],1), 0) # set clock to the time on the file
+        elif 'date' in cmdenv['sw']:
+            time_reset=_reset_time( _tpad( cmdenv['sw']['date'].split(',') ), 0) # set clock to the specified time
+        for path in cmdenv['args'][1:]:
+            try:
+                try:
+                    # Try to open the file in read-write binary mode
+                    with open(path, 'r+b') as file:
+                        first_char = file.read(1)
+                        if first_char:
+                            file.seek(0)
+                            file.write(first_char)
+                        else:
+                            raise OSError(2, '') # 'No such file or directory')  # Simulate file not found to recreate it
+                except OSError as e:
+                    if e.args[0] == 2:  # Error code 2 corresponds to "No such file or directory"
+                        with open(path, 'wb') as file:
+                            pass  # Do nothing after creating the file
+                    else:
+                        raise e  # Re-raise the exception if it is not a "file not found" error
+            except Exception as e:
+                shell._ee(cmdenv, e)  # print(f"{}: {e}")
+        if time_reset:
+            _reset_time(time_reset,1) # reset clock
 
 
 def curl(shell, cmdenv):
@@ -126,17 +180,11 @@ def curl(shell, cmdenv):
         headers["Content-Length"] = str(len(data))
     if cmdenv['sw'].get('file'):
         upfile = cmdenv['sw']['file']
-        try:
-            fstat=os.stat(upfile)
-        except Exception as e:
-            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
-            return
         method = "POST"
         headers["Content-Type"] = "application/octet-stream"
         headers["Content-Disposition"] = f"attachment; filename={upfile}"
         headers["Content-Length"] = str(fstat[6])
-        mtime = time.gmtime(fstat[7])
-        headers["modified"] = f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02}T{mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}Z"  # "modified": "2023-08-07T13:45:00Z"
+        headers["modified"] = _ftime(shell, upfile,0) # f"{mtime[0]}-{mtime[1]:02}-{mtime[2]:02}T{mtime[3]:02}:{mtime[4]:02}:{mtime[5]:02}Z"  # "modified": "2023-08-07T13:45:00Z"
     if cmdenv['sw'].get('user'):
         import ubinascii
         headers["Authorization"] = "Basic " + ubinascii.b2a_base64(cmdenv['sw'].get('user').encode('utf-8')).decode('utf-8').strip()
@@ -157,9 +205,9 @@ def curl(shell, cmdenv):
         # Wrap socket with SSL if using HTTPS
         if protocol == 'https':
             import ssl
-            print(f"this might lock up... new micropython bug? host={host}")
+            print(f"might lockup (micropython bug)")
             sock = ssl.wrap_socket(sock, server_hostname=host) # this locks up?
-            print("worked")
+            #print("worked")
 
 #        """ # Create a socket pool
 #        pool = socketpool.SocketPool(wifi.radio)
@@ -222,6 +270,9 @@ def curl(shell, cmdenv):
 
     
         if ofn is not None: # get the file date
+            if status != 200:
+                print(headers.decode('utf-8'))
+                return status, wb, ofn
             dstart = headers.find(b"Last-Modified:") # Last-Modified: Thu, 01 Aug 2024 00:50:11 GMT
             if dstart != -1:
                 import machine
@@ -231,18 +282,13 @@ def curl(shell, cmdenv):
                 # Extract the file date string
                 # print('Last-Modified:',headers[dstart + 14 :dend].strip().decode())
                 _, day, month_str, year, time_str, _ = headers[dstart + 14 :dend].strip().decode().split()
-                # print(f"day={day}, mo={month_str}, y={year}, time_str={time_str}")
                 month_map = { 'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12 }
-                hour, minute, sec = map(int, time_str.split(':'))
-                # print(f"hour={hour}, minute={minute}, sec={sec}")
-                file_time = (int(year), int(month_map[month_str]), int(day), 0, hour, minute, sec , 0)
-
-                time_reset=[time.ticks_ms(), time.mktime(time.gmtime())] # moment we changed the clock
-                # print(f"ft={file_time}, now={time_reset[1]}")
-                machine.RTC().datetime(file_time) # temp set the time to the date on the incoming file
-                # print(f"set={time.gmtime()}")
-
-
+                #hour, minute, sec = map(int, time_str.split(':'))
+                #file_time = (int(year), int(month_map[month_str]), int(day), 0, hour, minute, sec , 0)
+                #time_reset=_reset_time(file_time,0) # remember "now", then set the clock back to the date on the incoming file
+                #t=[ year, month_map[month_str], day,  map(int, time_str.split(':') ) ]
+                h, m, s = time_str.split(':')
+                time_reset=_reset_time( _tpad([ year, month_map[month_str], day, h, m, s ])  ,0) # remember "now", then set the clock back to the date on the incoming file
 
         if include_headers and 'q' not in cmdenv['sw']:
             shell.fprint(headers,fn=ofn)
@@ -315,20 +361,7 @@ def curl(shell, cmdenv):
     #    print(shell.get_desc(39).format(url,host,port,e) ) # "Error fetching {url} from {host}:{port}: {e}") # 31 bytes less
 
     if time_reset is not None:
-        #print(f"rbefore={time.gmtime()}")
-
-        diff_ms = time.ticks_diff(time.ticks_ms(), time_reset[0])
-        seconds = diff_ms // 1000
-        microseconds = (diff_ms % 1000) * 1000
-        machine.RTC().datetime( (lambda t: (t[0], t[1], t[2], 0, t[3], t[4], t[5], microseconds))(time.gmtime(time_reset[1] + seconds)) )
-
-        #new_time=time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5)
-        #dif=int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) 
-        #print(f"rnow={time_reset[1]} dif={dif}s")
-        #machine.RTC().datetime(time.gmtime(time_reset[1] + dif )) # return time to close-to-correct now
-        #machine.RTC().datetime(time.gmtime(time_reset[1] + int((time.ticks_diff(time.ticks_ms(), time_reset[0])/1000)+0.5) )) # return time to close-to-correct now
-        #print(f"rset={time_reset[1]}")
-        #print(f"rnow={time.gmtime()}")
+        _reset_time(time_reset,1)
 
     gc.collect()
     return status, wb, ofn # e.g. 200
@@ -337,22 +370,6 @@ def curl(shell, cmdenv):
 def wget(shell, cmdenv):
     return curl(shell, cmdenv)
 
-
-
-def telnetd(shell, cmdenv): # usage: telnetd --port=23
-    shell.cio.telnetd(shell,cmdenv['sw'].get('port', 23)) # tell our shell to open up the listening socket
-
-   
-
-def _termtype(shell, cmdenv): # +50, -58 bytes
-    print("\033[c\033[>0c", end='')  # get type and extended type of terminal. responds with: 1b 5b 3f 36 32 3b 31 3b 32 3b 36 3b 37 3b 38 3b 39 63    1b 5b 3e 31 3b 31 30 3b 30 63
-    #                                                                                         \033[?62;1;2;6;7;8;9c (Device Attributes DA)             \033[>1;10;0c (Secondary Device AttributesA)
-    # 62: VT220 terminal.  1: Normal cursor keys.  2: ANSI terminal.  6: Selective erase.  7: Auto-wrap mode.  8: XON/XOFF flow control.  9: Enable line wrapping.
-    # 1: VT100 terminal.  10: Firmware version 1.0.  0: No additional information.
-
-def _scrsize(shell, cmdenv): # 70 bytes
-    print("\033[s\0337\033[999C\033[999B\033[6n\r\033[u\0338", end='')  # ANSI escape code to save cursor position, move to lower-right, get cursor position, then restore cursor position: responds with \x1b[130;270R
-    #ng: print("\033[18t", end='')  # get screen size: does nothing
 
 def shupdate(shell, cmdenv):
     import os
@@ -368,7 +385,6 @@ def shupdate(shell, cmdenv):
     raise OSError( shell.get_desc(38) )
 
 
-
 def backup(shell, cmdenv):
     import os
     burl=cmdenv['sw'].get('url', shell._rw_toml('r',["BACKUP_URL"],subst=True,default='')) + cmdenv['sw'].get('tag', '')
@@ -382,17 +398,20 @@ def backup(shell, cmdenv):
         cmdenv['sw']['q']=True
         curl(shell, cmdenv)
 
+    def do_or_send(path,url):
+        if os.stat(path)[0] & 0x4000: # if os.path.isdir(full_path):
+            spider(path,url)
+        else:
+            bsend(path,url)
+   
     def spider(path,url):
         for entry in os.listdir(path):
             full_path = path + "/" + entry if path != "/" else "/" + entry # full_path = os.path.join(path, entry)
-            if os.stat(full_path)[0] & 0x4000: # if os.path.isdir(full_path):
-                spider(full_path,url)
-            else:
-                bsend(full_path,url)
+            do_or_send(full_path,url)
 
-    spider("/",burl)
-
-
+    for path in cmdenv['args'][1:] if len(cmdenv['args']) > 1 else [os.getcwd()]:
+        do_or_send(path,burl)
+        # spider("/",burl)
 
 
 

@@ -23,6 +23,8 @@ __version__ = '1.0.20240808'  # Major.Minor.Patch
 # 1718841600 # 2024/06/20 
 # TODO:
 #  md5sum command
+#  cp - retain file dates
+#  touch --ref= 
 #  handle /lib/ in mv properly (chop last /)
 #  tab-completion on lib/part
 #  semicolons in commands
@@ -945,8 +947,7 @@ class sh:
                         return shell.subst_env(ret).replace("\\n","\n").replace("\\t", "\t").replace("\\\\", "\\")
                 except Exception as e: 
                     return f'corrupt help file: {e}'
-
-        return None
+        return f"(missing helptext '{keyword}')"
 
 
     # error-message expander helpers

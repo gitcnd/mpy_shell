@@ -206,12 +206,92 @@ def rmdir(shell, cmdenv):
 
 
 
-def sort(shell,cmdenv):  # 53 bytes
-    return "\n".join(sorted(cmdenv['args'][1:], reverse='-r' in cmdenv['sw']))
-
-
 def pwd(shell, cmdenv):
     print(os.getcwd())
+
+
+def blink(shell, cmdenv):
+    if not 'pin' in cmdenv['sw']:
+        print(shell.get_desc(85)) # usage: blink --pin=<pin_number> [--rate=seconds] [--loop=count]
+    else:
+        import machine
+        rate = float( cmdenv['sw'].get('rate', 1.0))
+        loop = int( cmdenv['sw'].get('loop', -1)) * 2
+        try:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
+            while loop != 0: 
+                loop -= 1
+                led.value(loop & 1)
+                time.sleep(rate/2)
+        except Exception as e:
+            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
+
+def setpin(shell, cmdenv):
+    import machine
+    if not 'pin' in cmdenv['sw'] or not 'value' in cmdenv['sw']:
+        print(shell.get_desc(29)) # "usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
+    else:
+        try:
+            #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
+            led.value(int(cmdenv['sw']['value']))
+        except Exception as e:
+            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
+
+def pwm(shell, cmdenv): # was 4044 bytes
+    import machine
+    if not 'pin' in cmdenv['sw'] or not 'duty' in cmdenv['sw'] or not 'freq' in cmdenv['sw']:
+        print(shell.get_desc(28)) # .format(cmdenv['args'][0])) # usage: {} --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
+    else:
+        try:
+            pwm = machine.PWM(int(cmdenv['sw']['pin']), freq=int(cmdenv['sw']['freq']), duty_u16=int(cmdenv['sw']['duty']))    # create a PWM object on a pin and set freq and duty
+            # pwm.duty_u16(32768)            # set duty to 50%
+            # pwm.init(freq=5000, duty_ns=5000)    # reinitialise with a period of 200us, duty of 5us
+            # pwm.duty_ns(3000)            # set pulse width to 3us
+            if 'loop' in cmdenv['sw']:
+                ondelay=float(cmdenv['sw']['ondelay']) if 'ondelay' in cmdenv['sw'] else 0.5
+                offdelay=float(cmdenv['sw']['offdelay']) if 'offdelay' in cmdenv['sw'] else 0.5
+                voff=int(cmdenv['sw']['voff']) if 'voff' in cmdenv['sw'] else 0 if int(cmdenv['sw']['duty']) > 32767 else 65535
+                num=int(cmdenv['sw']['loop'])
+                while num>0:
+                    pwm.duty_u16(int(cmdenv['sw']['duty']))
+                    time.sleep(ondelay)
+                    pwm.duty_u16(voff)
+                    time.sleep(offdelay)
+                    num=num-1
+                pwm.deinit()
+        except Exception as e:
+            shell._ee(cmdenv, e)  # print(f"{}: {e}") # ValueError: invalid pin
+
+
+def getpin(shell, cmdenv):
+    import machine,time
+    loop = int(cmdenv['sw']['loop']) if 'loop' in cmdenv['sw'] else -1 if 'l' in cmdenv['sw'] else 1
+    delay = int(cmdenv['sw']['delay']) if 'delay' in cmdenv['sw'] else 0
+    if not 'pin' in cmdenv['sw']:
+        print(shell.get_desc(30)) # usage: getpin --pin=<pin_number> [--pullup=1]
+    elif 'a' in cmdenv['sw']:
+        adc = machine.ADC(machine.Pin(int(cmdenv['sw']['pin'])))
+        # set the attenuation (gain), e.g., 11dB attenuation gives a full range of 0-3.3V. Table below converts from either volts or DB into machine.ADC.ATTN_11DB values.
+        adc.atten({ '0': 0, '1.1': 0, '1.5': 1, '2.2': 2, '2.5':1, '3.3': 3, '6': 2, '11': 3 }.get(cmdenv['sw']['atten']) if 'atten' in cmdenv['sw'] else 3 ) # machine.ADC.ATTN_11DB = 3 = Full range: 0-3.3V
+        adc.width(int(cmdenv['sw']['bits']) if 'bits' in cmdenv['sw'] else 12)  # 12-bit resolution
+        print(f"Pin {cmdenv['sw']['pin']} analog value: ", end='')
+        while loop != 0:
+            print(adc.read(), end=" \t")
+            loop -= 1
+            if delay: time.sleep(delay)
+    else:
+        if 'pullup' in cmdenv['sw'] or 'u' in cmdenv['sw']:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_UP)
+        elif 'pulldown' in cmdenv['sw'] or 'd' in cmdenv['sw']:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_DOWN)
+        else:
+            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
+        print(f"Pin {cmdenv['sw']['pin']} digital value: ",end='')
+        while loop != 0:
+            print(led.value(), end=" \t")
+            loop -= 1
+            if delay: time.sleep(delay)
 
 
 """ Not working in micropython
@@ -278,78 +358,3 @@ def ping(shell, cmdenv):
         print(shell.get_desc(19).format(min_time,avg_time,max_time,mdev_time)) # rtt min/avg/max/mdev = {min_time:.3f}/{avg_time:.3f}/{max_time:.3f}/{mdev_time:.3f} ms
 
 """
-
-def clear(shell, cmdenv):
-    print("\033[2J\033[H", end='')  # ANSI escape codes to clear screen
-
-
-def cls(shell, cmdenv):
-    print("\033[2J", end='')  # ANSI escape code to clear screen
-
-
-def blink(shell, cmdenv):
-    if not 'pin' in cmdenv['sw']:
-        print(shell.get_desc(85)) # usage: blink --pin=<pin_number> [--rate=seconds] [--loop=count]
-    else:
-        import machine
-        rate = float( cmdenv['sw'].get('rate', 1.0))
-        loop = int( cmdenv['sw'].get('loop', -1)) * 2
-        try:
-            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
-            while loop != 0: 
-                loop -= 1
-                led.value(loop & 1)
-                time.sleep(rate/2)
-        except Exception as e:
-            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
-
-def setpin(shell, cmdenv):
-    import machine
-    if not 'pin' in cmdenv['sw'] or not 'value' in cmdenv['sw']:
-        print(shell.get_desc(29)) # "usage: {} --pin=<pin_number> --value=<0 or 1>".format(cmdenv['args'][0]))
-    else:
-        try:
-            #print(f"setting {cmdenv['sw']['pin']} to {cmdenv['sw']['value']}")
-            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.OUT)
-            led.value(int(cmdenv['sw']['value']))
-        except Exception as e:
-            print(shell.get_desc(10).format(cmdenv['args'][0],e)) # {}: {}
-
-def pwm(shell, cmdenv): # was 4044 bytes
-    import machine
-    if not 'pin' in cmdenv['sw'] or not 'duty' in cmdenv['sw'] or not 'freq' in cmdenv['sw']:
-        print(shell.get_desc(28)) # .format(cmdenv['args'][0])) # usage: {} --pin=<pin_number> --duty=<0 to 65535> --freq=<integer number> [--loop=<n> --ondelay=<seconds> --offdelay=<seconds> --voff=<duty cyle for off>]
-    else:
-        try:
-            pwm = machine.PWM(int(cmdenv['sw']['pin']), freq=int(cmdenv['sw']['freq']), duty_u16=int(cmdenv['sw']['duty']))    # create a PWM object on a pin and set freq and duty
-            # pwm.duty_u16(32768)            # set duty to 50%
-            # pwm.init(freq=5000, duty_ns=5000)    # reinitialise with a period of 200us, duty of 5us
-            # pwm.duty_ns(3000)            # set pulse width to 3us
-            if 'loop' in cmdenv['sw']:
-                ondelay=float(cmdenv['sw']['ondelay']) if 'ondelay' in cmdenv['sw'] else 0.5
-                offdelay=float(cmdenv['sw']['offdelay']) if 'offdelay' in cmdenv['sw'] else 0.5
-                voff=int(cmdenv['sw']['voff']) if 'voff' in cmdenv['sw'] else 0 if int(cmdenv['sw']['duty']) > 32767 else 65535
-                num=int(cmdenv['sw']['loop'])
-                while num>0:
-                    pwm.duty_u16(int(cmdenv['sw']['duty']))
-                    time.sleep(ondelay)
-                    pwm.duty_u16(voff)
-                    time.sleep(offdelay)
-                    num=num-1
-                pwm.deinit()
-        except Exception as e:
-            shell._ee(cmdenv, e)  # print(f"{}: {e}") # ValueError: invalid pin
-
-def getpin(shell, cmdenv):
-    import machine
-    if not 'pin' in cmdenv['sw']:
-        print(shell.get_desc(30)) # usage: getpin --pin=<pin_number> [--pullup=1]
-    else:
-        if 'pullup' in cmdenv['sw']:
-            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_UP)
-        elif 'pulldown' in cmdenv['sw']:
-            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN, machine.Pin.PULL_DOWN)
-        else:
-            led = machine.Pin(int(cmdenv['sw']['pin']), machine.Pin.IN)
-        print("pin {} is {}".format(cmdenv['sw']['pin'], led.value()))
-

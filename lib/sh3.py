@@ -226,3 +226,22 @@ def scani2c(shell, cmdenv):
         else:
             print(shell.get_desc(72)) # No I2C devices found
 
+
+
+def date(shell, cmdenv):
+    now(shell, cmdenv)
+    #date_time = time.localtime()
+    #print( shell.get_desc(42).format( date_time.tm_year,date_time.tm_mon,date_time.tm_mday,date_time.tm_hour,date_time.tm_min,date_time.tm_sec ) ) # f"{date_time.tm_year}-{date_time.tm_mon:02}-{date_time.tm_mday:02} {date_time.tm_hour:02}:{date_time.tm_min:02}.{date_time.tm_sec:02}")
+    #print( shell.get_desc(42).format(*time.localtime()[:6]))
+
+
+def now(shell, cmdenv):
+    if time.localtime()[0]<2024:
+        #cio=shell.cio
+        #cio.set_time()  # set the time if possible and not already set
+        shell.cio.set_time(shell)  # set the time if possible and not already set
+    #ret="{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(*time.localtime()[:6])
+    ret=shell.get_desc(42).format(*time.localtime()[:6])
+    if not cmdenv['sw'].get('op', False): print(ret)
+    return ret
+
