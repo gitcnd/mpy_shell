@@ -777,7 +777,7 @@ class sh:
         try:
             infile = [ open(file, 'r') ]
         except OSError:
-            if op == 'w':
+                #if op == 'w':
                 open(file, 'w').close() # create empty one if missing
                 return default
 
@@ -1202,6 +1202,9 @@ class sh:
             os.chdir("/") # Leaving without doign this makes most future imports break
             return 0
 
+        if cmd == '.':
+            cmd = 'dot'
+
 
         #if cmd == 'echo':
         #    print( cmdenv['line'].split(' ', 1)[1] if ' ' in cmdenv['line'] else '') # " ".join(cmdenv['args'][1:])
@@ -1220,12 +1223,12 @@ class sh:
             if command_function:
                 #print(f"running {mod}.{cmd}")
                 ret=command_function(shell,cmdenv)  # Run the command
-                del sys.modules[mod]
+                if mod in sys.modules: del sys.modules[mod]
                 gc.collect()
                 return 1
                 # return ret
                 break
-            del sys.modules[mod]
+            if mod in sys.modules: del sys.modules[mod]
             gc.collect()
 
         print(shell.get_desc(0).format(cmd)) # {} command not found

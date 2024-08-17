@@ -180,9 +180,9 @@ def rm(shell, cmdenv):
         for path in cmdenv['args'][1:]:
             try:
                 if os.stat(path)[0] & 0x4000:  # Check if it's a directory
-                    os.rmdir(path)
+                    os.rmdir(path.rstrip('/'))
                 else:
-                    os.remove(path)
+                    os.remove(path.rstrip('/'))
             except OSError as e:
                 shell._ee(cmdenv,e) # print(f"rm: {e}")
 
@@ -194,9 +194,9 @@ def mkdir(shell, cmdenv):
         for path in cmdenv['args'][1:]:
             try:
                 if cmdenv['args'][0] == 'rmdir':
-                    os.rmdir(path)
+                    os.rmdir( path.rstrip('/') )
                 else:
-                    os.mkdir(path)
+                    os.mkdir(path.rstrip('/'))
             except OSError as e:
                 shell._ee(cmdenv,e) # print(f"{}: {e}")
 

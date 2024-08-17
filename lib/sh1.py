@@ -155,9 +155,17 @@ def run(shell,cmdenv):
         while True:
             if not extra_iteration:
                 line = f.readline()
+
+                if cmdenv['args'][0]=='.': # run a "sh" script
+                    if not line: break
+                    print(line)
+                    shell.execute_command(line)
+                    continue
+
                 if not line:
                     extra_iteration = True
                     line = '\n'  # Trigger the final block execution
+
             else:
                 break
 
@@ -187,6 +195,11 @@ def run(shell,cmdenv):
                 #    print(f"Error executing block: {e}")
                 #    break
 
+
+
+def dot(shell, cmdenv):
+    cmdenv['args'][0]='.'
+    run(shell,cmdenv)
 
 
 # def test(shell,cmdenv):
@@ -346,7 +359,6 @@ def cat(shell, cmdenv):
                         print(chunk.decode('utf-8'), end='')
             except Exception as e:
                 shell._ee(cmdenv, e)  # print(f"cat: {e}")
-
 
 def alias(shell, cmdenv):
     if len(cmdenv['args']) < 2:

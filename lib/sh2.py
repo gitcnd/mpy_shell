@@ -73,12 +73,6 @@ def _parse_url(url):
     return protocol, host, port, path
 
 
-def set_time(shell, cmdenv):
-    print(f"current: {time.gmtime()}")
-    shell.cio.set_time(shell)  # set the time if possible and not already set
-    print(f"now: {time.gmtime()}")
-
-
 def _tpad(mtime): # convert from file times into esp32 setting time format
     return(int(mtime[0]), int(mtime[1]), int(mtime[2]), 0, int(mtime[3]), int(mtime[4]), int(mtime[5]), 0)
 
@@ -180,6 +174,7 @@ def curl(shell, cmdenv):
         headers["Content-Length"] = str(len(data))
     if cmdenv['sw'].get('file'):
         upfile = cmdenv['sw']['file']
+        fstat=os.stat(upfile)
         method = "POST"
         headers["Content-Type"] = "application/octet-stream"
         headers["Content-Disposition"] = f"attachment; filename={upfile}"

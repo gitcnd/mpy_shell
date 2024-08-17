@@ -78,6 +78,12 @@ def wc(shell, cmdenv): # 249 bytes
             shell._ee(cmdenv, e)  # print(f"wc: {e}")
 
 
+def set_time(shell, cmdenv):
+    print(f"current: {time.gmtime()}")
+    shell.cio.set_time(shell)  # set the time if possible and not already set
+    print(f"now: {time.gmtime()}")
+
+
 
 def history(shell, cmdenv):
     try:
